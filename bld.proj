@@ -1,5 +1,6 @@
 lib termios =
 	termios+freebsd.myr
+	termios+openbsd.myr
 	termios+linux.myr
 	term.myr
 	termevent.myr
