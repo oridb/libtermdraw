@@ -1,0 +1,34 @@
+use sys
+use std
+
+pkg termcap =
+	const Nccs = 20
+	type termios = struct
+		iflag	: uint32	/* input flags */
+		oflag	: uint32	/* output flags */
+		cflag	: uint32	/* control flags */
+		lflag	: uint32	/* local flags */
+		cc	: byte[NCCS]	/* control chars */
+		ispeed	: uint32	/* input speed */
+		ospeed	: uint32	/* output speed */
+	;;
+	const tcgetattr	: (fd : std.fd, t : termios# -> sys.errno)
+	const tcsetattr	: (fd : std.fd, opt : tioopt, t : termios# -> sys.errno)
+;;
+
+const Tiocgeta	= 1076655123
+const Tiocseta	= 2150396948
+const Tiocdrain	= 2150396949
+const Tiocflush	= 2150396950
+
+const tcgetattr = {fd, t
+	-> sys.ioctl(fd, Tiogeta, t)
+}
+
+const tcsetattr = {fd, opt, t
+	match opt
+	| `Onow:	-> sys.ioctl(fd, Tioseta, t)
+	| `Odrain:	-> sys.ioctl(fd, Tiosetaw, t)
+	| `Oflush:	-> sys.ioctl(fd, Tiosetaf, t)
+	;;
+}

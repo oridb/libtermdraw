@@ -1,0 +1,144 @@
+use sys
+use std
+
+pkg termios =
+	type iflags = uint32
+	type oflags = uint32
+	type cflags = uint32
+	type lflags = uint32
+
+	const Veof	= 0	/* ICANON */
+	const Veol	= 1	/* ICANON */
+	const Veol2	= 2	/* ICANON together with IEXTEN */
+	const Verase	= 3	/* ICANON */
+	const Vwerase 	= 4	/* ICANON together with IEXTEN */
+	const Vkill	= 5	/* ICANON */
+	const Vreprint 	= 6	/* ICANON together with IEXTEN */
+	const Verase2 	= 7	/* ICANON */
+	const Vintr	= 8	/* ISIG */
+	const Vquit	= 9	/* ISIG */
+	const Vsusp	= 10	/* ISIG */
+	const Vdsusp	= 11	/* ISIG together with IEXTEN */
+	const Vstart	= 12	/* IXON, IXOFF */
+	const Vstop	= 13	/* IXON, IXOFF */
+	const Vlnext	= 14	/* IEXTEN */
+	const Vdiscard	= 15	/* IEXTEN */
+	const Vmin	= 16	/* !ICANON */
+	const Vtime	= 17	/* !ICANON */
+	const Vstatus	= 18	/* ICANON together with IEXTEN */
+	const Nccs 	= 20
+
+	/* input flags */
+	const Ignbrk	: iflags = 0x00000001	/* ignore BREAK condition */
+	const Brkint	: iflags = 0x00000002	/* map BREAK to SIGINTR */
+	const Ignpar	: iflags = 0x00000004	/* ignore (discard) parity errors */
+	const Parmrk	: iflags = 0x00000008	/* mark parity and framing errors */
+	const Inpck	: iflags = 0x00000010	/* enable checking of parity errors */
+	const Istrip	: iflags = 0x00000020	/* strip 8th bit off chars */
+	const Inlcr	: iflags = 0x00000040	/* map NL into CR */
+	const Igncr	: iflags = 0x00000080	/* ignore CR */
+	const Icrnl	: iflags = 0x00000100	/* map CR to NL (ala CRMOD) */
+	const Ixon	: iflags = 0x00000200	/* enable output flow control */
+	const Ixoff	: iflags = 0x00000400	/* enable input flow control */
+	const Ixany	: iflags = 0x00000800	/* any char will restart after stop */
+	const Imaxbel	: iflags = 0x00002000	/* ring bell on input queue full */
+
+	/* output flags */
+	const Opost	: oflags = 0x00000001	/* enable following output processing */
+	const Onlcr	: oflags = 0x00000002	/* map NL to CR-NL (ala CRMOD) */
+	const Tabdly	: oflags = 0x00000004	/* tab delay mask */
+	const     Tab0	: oflags = 0x00000000	/* no tab delay and expansion */
+	const     Tab3	: oflags = 0x00000004	/* expand tabs to spaces */
+	const Onoeot	: oflags = 0x00000008	/* discard EOT's (^D) on output) */
+	const Ocrnl	: oflags = 0x00000010	/* map CR to NL on output */
+	const Onocr	: oflags = 0x00000020	/* no CR output at column 0 */
+	const Onlret	: oflags = 0x00000040	/* NL performs CR function */
+
+	/* control flags */
+	const Cignore	: cflags = 0x00000001	/* ignore control flags */
+	const Csize	: cflags = 0x00000300	/* character size mask */
+	const     Cs5	: cflags =     0x00000000	    /* 5 bits (pseudo) */
+	const     Cs6	: cflags =     0x00000100	    /* 6 bits */
+	const     Cs7	: cflags =     0x00000200	    /* 7 bits */
+	const     Cs8	: cflags =     0x00000300	    /* 8 bits */
+	const Cstopb	: cflags = 0x00000400	/* send 2 stop bits */
+	const Cread	: cflags = 0x00000800	/* enable receiver */
+	const Parenb	: cflags = 0x00001000	/* parity enable */
+	const Parodd	: cflags = 0x00002000	/* odd parity, else even */
+	const Hupcl	: cflags = 0x00004000	/* hang up on last close */
+	const Clocal	: cflags = 0x00008000	/* ignore modem status lines */
+
+	/* local flags */
+	const Echoke	: lflags = 0x00000001	/* visual erase for line kill */
+	const Echoe	: lflags = 0x00000002	/* visually erase chars */
+	const Echok	: lflags = 0x00000004	/* echo NL after line kill */
+	const Echo	: lflags = 0x00000008	/* enable echoing */
+	const Echonl	: lflags = 0x00000010	/* echo NL even if ECHO is off */
+	const Echoprt	: lflags = 0x00000020	/* visual erase mode for hardcopy */
+	const Echoctl  	: lflags = 0x00000040	/* echo control chars as ^(Char) */
+	const Isig	: lflags = 0x00000080	/* enable signals INTR, QUIT, [D]SUSP */
+	const Icanon	: lflags = 0x00000100	/* canonicalize input lines */
+	const Altwerase	: lflags = 0x00000200	/* use alternate WERASE algorithm */
+	const Iexten	: lflags = 0x00000400	/* enable DISCARD and LNEXT */
+	const Extproc	: lflags = 0x00000800      /* external processing */
+	const Tostop	: lflags = 0x00400000	/* stop background jobs from output */
+	const Flusho	: lflags = 0x00800000	/* output being flushed (state) */
+	const Pendin	: lflags = 0x20000000	/* XXX retype pending input (state) */
+	const Noflsh	: lflags = 0x80000000	/* don't flush after interrupt */
+
+	type termios = struct
+		iflag	: iflags	/* input flags */
+		oflag	: oflags	/* output flags */
+		cflag	: cflags	/* control flags */
+		lflag	: lflags	/* local flags */
+		cc	: byte[20]	/* control chars */
+		ispeed	: uint32	/* input speed */
+		ospeed	: uint32	/* output speed */
+	;;
+
+	type tioopt = union
+		`Onow
+		`Odrain
+		`Oflush
+	;;
+
+	type winsize = struct
+		row	: uint16
+		col	: uint16
+		xpix	: uint16
+		ypix	: uint16
+	;;
+
+	const tcgetattr	: (fd : std.fd, t : termios# -> sys.errno)
+	const tcsetattr	: (fd : std.fd, opt : tioopt, t : termios# -> sys.errno)
+	const tcwinsize	: (fd : std.fd, winsz : winsize# -> sys.errno)
+;;
+
+const Tiocgeta	= 1076655123
+const Tiocseta	= 0x802c7414
+const Tiocsetaw	= 0x802c7415
+const Tiocsetaf	= 0x802c7416
+const Tiocgwinsz = 0x40087468
+
+const tcgetattr = {fd, t
+	var fn
+
+	fn = (fd : sys.fd)
+	-> (sys.ioctl(fn, Tiocgeta, t) : sys.errno)
+}
+
+const tcsetattr = {fd, opt, t
+	var fn, r
+
+	fn = (fd : sys.fd)
+	match opt
+	| `Onow:	r = sys.ioctl(fn, Tiocseta, t)
+	| `Odrain:	r = sys.ioctl(fn, Tiocsetaw, t)
+	| `Oflush:	r = sys.ioctl(fn, Tiocsetaf, t)
+	;;
+	-> (r : sys.errno)
+}
+
+const tcwinsize = {fd, wsz
+	-> (sys.ioctl(1, Tiocgwinsz, wsz) : sys.errno)
+}

@@ -1,0 +1,135 @@
+use std
+use sys
+use "term"
+use "termios"
+
+pkg termios =
+	type event = union
+		`Winsz (int, int)
+		`Gone
+		`Kesc
+		`Kup
+		`Kdown
+		`Kleft
+		`Kright
+		`Khome
+		`Kend
+		`Kdel
+		`Kpgup
+		`Kpgdn
+		`Kwut
+		`Kc char
+	;;
+
+	const event : (t : term# -> event)
+;;
+
+const Esc = 27
+var winchanges = 0
+var winreported = 0
+
+const __init__ = {
+	var osa
+	var sa = [
+		.handler = (winch : byte#),
+		.flags = sys.Sarestart,
+	]
+	sys.sigaction(sys.Sigwinch, &sa, &osa)
+}
+
+const winch = {;
+	winchanges++
+}
+
+const event = {t
+	var wc, c
+	var x, y
+
+	while true
+		/*
+		we can get more signals here, so lets try
+		to do something atomic-like.
+		*/
+		c = winchanges
+		if c > winreported
+			tcwinsize(t.fd, &wc)
+			winreported = c
+			x = (wc.col : int)
+			y = (wc.row : int)
+			resize(t, x, y)
+			-> `Winsz (x, y)
+		;;
+
+		match readb(t.fd)
+		| 0:	continue
+		| Esc:	-> readesc()
+		| b:	-> readchar(b)
+		;;
+	;;
+	-> `Gone
+}
+
+const readesc = {
+	var seq : byte[3]
+
+	seq[0] = readb(std.In)
+	seq[1] = readb(std.In)
+	if seq[0] == 0 || seq[1] == 0
+		-> `Kesc
+	;;
+
+	/* ESC [ sequences. */
+	match seq[:2]
+	| "[A":	-> `Kup;
+	| "[B":	-> `Kdown
+	| "[C":	-> `Kright
+	| "[D":	-> `Kleft
+	| "[H":	-> `Khome
+	| "[F":	-> `Kend
+	| "0H":	-> `Khome
+	| "0F":	-> `Kend
+	| _:
+		seq[2] = readb(std.In)
+		if seq[2] == 0
+			-> `Kesc
+		;;
+		match seq[:3]
+		| "[~3":	-> `Kdel
+		| "[~5":	-> `Kpgup
+		| "[~6":	-> `Kpgdn
+		| wut:		-> `Kwut
+		;;
+	;;
+}
+
+const readchar = {b
+	var buf : byte[4]
+	var n
+
+	buf[0] = b
+	n = 1
+	if (b > 0x80)
+		match std.read(std.In, buf[1:])
+		| `std.Ok c:	n += c
+		| `std.Err e:
+			std.put("error reading input: {}\n", e)
+			std.fatal("exiting..\n", e)
+		;;
+
+	;;
+	-> `Kc std.decode(buf[:n])
+}
+
+
+const readb = {fd
+	var buf : byte[1]
+	match std.read(fd, buf[:])
+	| `std.Ok 0:	-> 0
+	| `std.Ok n:	-> buf[0]
+	| `std.Err e:
+		std.put("error reading input: {}\n", e)
+		std.fatal("exiting..\n", e)
+	;;
+
+}
+

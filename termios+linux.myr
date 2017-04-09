@@ -1,0 +1,161 @@
+use sys
+use std
+
+pkg termios =
+	type iflags = uint32
+	type oflags = uint32
+	type cflags = uint32
+	type lflags = uint32
+
+	const Vintr	= 0
+	const Vquit	= 1
+	const Verase	= 2
+	const Vkill	= 3
+	const Veof	= 4
+	const Vtime	= 5
+	const Vmin	= 6
+	const Vswtc	= 7
+	const Vstart	= 8
+	const Vstop	= 9
+	const Vsusp	= 10
+	const Veol	= 11
+	const Vreprint	= 12
+	const Vdiscard	= 13
+	const Vwerase	= 14
+	const Vlnext	= 15
+	const Veol2	= 16
+
+	/* input flags */
+	const Ignbrk	: iflags = 0o000001
+	const Brkint	: iflags = 0o000002
+	const Ignpar	: iflags = 0o000004
+	const Parmrk	: iflags = 0o000010
+	const Inpck	: iflags = 0o000020
+	const Istrip	: iflags = 0o000040
+	const Inlcr	: iflags = 0o000100
+	const Igncr	: iflags = 0o000200
+	const Icrnl	: iflags = 0o000400
+	const Iuclc	: iflags = 0o001000
+	const Ixon	: iflags = 0o002000
+	const Ixany	: iflags = 0o004000
+	const Ixoff	: iflags = 0o010000
+	const Imaxbel	: iflags = 0o020000
+	const Iutf8	: iflags = 0o040000
+
+	/* output flags */
+	const Opost	: oflags = 0o000001
+	const Olcuc	: oflags = 0o000002
+	const Onlcr	: oflags = 0o000004
+	const Ocrnl	: oflags = 0o000010
+	const Onocr	: oflags = 0o000020
+	const Onlret	: oflags = 0o000040
+	const Ofill	: oflags = 0o000100
+	const Ofdel	: oflags = 0o000200
+	const Nldly	: oflags = 0o000400
+	const   Nl0	: oflags = 0o000000
+	const   Nl1	: oflags = 0o000400
+	const Crdly	: oflags = 0o003000
+	const   Cr0	: oflags = 0o000000
+	const   Cr1	: oflags = 0o001000
+	const   Cr2	: oflags = 0o002000
+	const   Cr3	: oflags = 0o003000
+	const Tabdly	: oflags = 0o014000
+	const   Tab0	: oflags = 0o000000
+	const   Tab1	: oflags = 0o004000
+	const   Tab2	: oflags = 0o010000
+	const   Tab3	: oflags = 0o014000
+	const Bsdly	: oflags = 0o020000
+	const   Bs0	: oflags = 0o000000
+	const   Bs1	: oflags = 0o020000
+	const Ffdly	: oflags = 0o100000
+	const   Ff0	: oflags = 0o000000
+	const   Ff1	: oflags = 0o100000
+
+	/* control flags */
+	const Csize	: cflags = 0o000060
+	const   Cs5	: cflags = 0o000000
+	const   Cs6	: cflags = 0o000020
+	const   Cs7	: cflags = 0o000040
+	const   Cs8	: cflags = 0o000060
+	const Cstopb	: cflags = 0o000100
+	const Cread	: cflags = 0o000200
+	const Parenb	: cflags = 0o000400
+	const Parodd	: cflags = 0o001000
+	const Hupcl	: cflags = 0o002000
+	const Clocal	: cflags = 0o004000
+
+	/* local flags */
+	const Isig	: lflags = 0o000001
+	const Icanon	: lflags = 0o000002
+	const Xcase	: lflags = 0o000004
+	const Echo	: lflags = 0o000010
+	const Echoe	: lflags = 0o000020
+	const Echok	: lflags = 0o000040
+	const Echonl	: lflags = 0o000100
+	const Noflsh	: lflags = 0o000200
+	const Tostop	: lflags = 0o000400
+	const Echoctl	: lflags = 0o001000
+	const Echoprt	: lflags = 0o002000
+	const Echoke	: lflags = 0o004000
+	const Flusho	: lflags = 0o010000
+	const Pendin	: lflags = 0o040000
+	const Iexten	: lflags = 0o100000
+	const Extproc	: lflags = 0o200000
+
+	type termios = struct
+		iflag	: iflags	/* input flags */
+		oflag	: oflags	/* output flags */
+		cflag	: cflags	/* control flags */
+		lflag	: lflags	/* local flags */
+		line	: byte
+		cc	: byte[19]	/* control chars */
+		ispeed	: uint32	/* input speed */
+		ospeed	: uint32	/* output speed */
+	;;
+
+	type tioopt = union
+		`Onow
+		`Odrain
+		`Oflush
+	;;
+
+	type winsize = struct
+		row	: uint16
+		col	: uint16
+		xpix	: uint16
+		ypix	: uint16
+	;;
+
+	const tcgetattr	: (fd : std.fd, t : termios# -> sys.errno)
+	const tcsetattr	: (fd : std.fd, opt : tioopt, t : termios# -> sys.errno)
+	const tcwinsize	: (fd : std.fd, winsz : winsize# -> sys.errno)
+;;
+
+const Tcgets	= 0x5401
+const Tcsets	= 0x5402
+const Tcsetsw	= 0x5403
+const Tcsetsf	= 0x5404
+const Tiocgwinsz = 0x5413
+
+const tcgetattr = {fd, t
+	var fn
+
+	fn = (fd : sys.fd)
+	-> (sys.ioctl(fn, Tcgets, t) : sys.errno)
+}
+
+const tcsetattr = {fd, opt, t
+	var fn, r
+
+	fn = (fd : sys.fd)
+	match opt
+	| `Onow:	r = sys.ioctl(fn, Tcsets, t)
+	| `Odrain:	r = sys.ioctl(fn, Tcsetsw, t)
+	| `Oflush:	r = sys.ioctl(fn, Tcsetsf, t)
+	;;
+	-> (r : sys.errno)
+}
+
+const tcwinsize = {fd, wsz
+	-> (sys.ioctl(1, Tiocgwinsz, wsz) : sys.errno)
+}

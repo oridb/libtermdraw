@@ -1,0 +1,211 @@
+use std
+use "termios"
+
+pkg termios =
+	type color = int
+	type attr = int
+
+	const Black	: color = 0
+	const Red  	: color = 1
+	const Green	: color = 2
+	const Yellow	: color = 3
+	const Blue 	: color = 4
+	const Magenta	: color = 5
+	const Cyan 	: color = 6
+	const White	: color = 7
+	const Default	: color = 9
+
+	const Normal	: attr = 0
+	const Bold	: attr = 1
+	const Italic	: attr = 3
+	const Underline	: attr = 4
+	const Blink	: attr = 5
+
+	type term = struct
+		fd	: std.fd
+		cx	: int
+		cy	: int
+		width	: int
+		height	: int
+		fg	: color
+		bg	: color
+		attr	: attr
+		buf	: cell[:]
+		orig	: termios
+	;;
+
+	type cell = struct
+		chr	: char
+		attr	: attr
+		fg	: color
+		bg	: color
+	;;
+
+	const mk	: (fd : std.fd -> term#)
+	const free	: (t : term# -> void)
+	const raw	: (t : term# -> void)
+
+	const size	: (t : term# -> (int, int))
+	const move	: (t : term#, r : int, c : int -> void)
+
+	const cls	: (t : term# -> void)
+	const flush	: (t : term# -> void)
+	const putc	: (t : term#, c : char -> void)
+	const put	: (t : term#, fmt : byte[:], args : ... -> void)
+	const setfg	: (t : term#, c : color -> void)
+	const setbg	: (t : term#, c : color -> void)
+	const setattr	: (t : term#, c : attr -> void)
+
+	pkglocal const resize	: (t : term#, x : int, y : int -> void)
+;;
+
+const mk = {fd
+	var ws
+	var t
+
+	tcwinsize(fd, &ws)
+	t = std.mk([
+		.fd=fd,
+		.cx=0,
+		.cy=0,
+		.width=(ws.col : int),
+		.height=(ws.row : int),
+		.fg=Default,
+		.bg=Default,
+		.buf=std.slalloc((ws.row * ws.col : std.size)),
+	])
+	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
+	termios.tcgetattr(t.fd, &t.orig)
+	cls(t);
+	-> t
+}
+
+const raw = {t
+	var tio
+
+	tio = t.orig
+	tio.iflag &= ~(termios.Brkint | termios.Icrnl | \
+		termios.Inpck | termios.Istrip | termios.Ixon)
+	tio.oflag &= ~termios.Opost
+	tio.cflag |= termios.Cs8
+	tio.lflag &= ~(termios.Echo | termios.Icanon | termios.Iexten | termios.Isig)
+	tio.cc[termios.Vmin] = 0
+	tio.cc[termios.Vtime] = 1
+	termios.tcsetattr(t.fd, `termios.Oflush, &tio)
+}
+
+const free = {t
+	termios.tcsetattr(t.fd, `termios.Oflush, &t.orig)
+	std.fput(t.fd, "\x1bc")
+	std.slfree(t.buf)
+	std.free(t)
+}
+
+const cls = {t
+	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
+	std.fput(t.fd, "\x1b[2J")
+	move(t, 0, 0)
+}
+
+const flush = {t
+	var fg, bg, attr
+	var sb, s
+
+	sb = std.mksb()
+	move(t, 0, 0)
+	fg = -1
+	bg = -1
+	attr = -1
+	for var i = 0; i < t.width * t.height; i++
+		if fg != t.buf[i].fg
+			fg = t.buf[i].fg;
+			std.sbfmt(sb, "\x1b[{}m", 30+fg)
+		;;
+		if bg != t.buf[i].bg
+			bg = t.buf[i].bg;
+			std.sbfmt(sb, "\x1b[{}m", 40+bg)
+		;;
+		if attr != t.buf[i].attr
+			attr = t.buf[i].attr;
+			std.sbfmt(sb, "\x1b[{}m", attr)
+		;;
+		std.sbputc(sb, t.buf[i].chr)
+	;;
+	s = std.sbfin(sb)
+	std.write(t.fd, s)
+	std.slfree(s)
+	move(t, t.cx, t.cy)
+}
+
+const resize = {t, x, y
+	var buf
+	var w, h
+
+	w = std.min(x, t.width)
+	h = std.min(y, t.height)
+
+	buf=std.slalloc((x* y : std.size))
+	std.slfill(buf, [.chr=' ', .attr=t.attr, .fg=t.fg, .bg=t.bg])
+	for var i = 0; i < h; i++
+		std.slcp(buf[x*i : x*i + w], t.buf[t.width *i:t.width*i + w])
+	;;
+	std.slfree(t.buf)
+	t.width = x
+	t.height = y
+	t.buf = buf
+	flush(t)
+}
+
+const size = {t
+	-> (t.width, t.height)
+}
+
+const move = {t, x, y
+	t.cx = x
+	t.cy = y
+	std.fput(t.fd, "\x1b[{};{}f", y + 1, x + 1)
+}
+
+const putc = {t, c
+	var idx
+	
+	idx = t.cy * t.width + t.cx
+	match c
+	| '\r':	t.cx = 0
+	| '\n': t.cy = std.min(t.cy + 1, t.height)
+	| chr:
+		t.buf[idx] = [
+			.chr = chr,
+			.fg = t.fg,
+			.bg = t.bg,
+			.attr = t.attr,
+		]
+		if t.cx > t.width
+			t.cy++ 
+		;;
+		t.cx = (t.cx + 1) % t.width
+	;;
+}
+
+const put = {t, fmt, args
+	var s, ap
+
+	ap = std.vastart(&args)
+	s = std.fmtv(fmt, &ap)
+	for c in std.bychar(s)
+		putc(t, c)
+	;;
+	std.slfree(s)
+}
+
+const setattr = {t, attr
+	t.attr = attr
+}
+
+const setfg = {t, fg
+	t.fg = fg
+}
+
+const setbg = {t, bg
+	t.bg = bg
+}
