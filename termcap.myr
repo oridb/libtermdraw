@@ -1,9 +1,9 @@
 use sys
 use std
 
-pkg termcap =
+pkg termdraw =
 	const Nccs = 20
-	type termios = struct
+	type termdraw = struct
 		iflag	: uint32	/* input flags */
 		oflag	: uint32	/* output flags */
 		cflag	: uint32	/* control flags */
@@ -12,8 +12,8 @@ pkg termcap =
 		ispeed	: uint32	/* input speed */
 		ospeed	: uint32	/* output speed */
 	;;
-	const tcgetattr	: (fd : std.fd, t : termios# -> sys.errno)
-	const tcsetattr	: (fd : std.fd, opt : tioopt, t : termios# -> sys.errno)
+	const tcgetattr	: (fd : std.fd, t : termdraw# -> sys.errno)
+	const tcsetattr	: (fd : std.fd, opt : tioopt, t : termdraw# -> sys.errno/
 ;;
 
 const Tiocgeta	= 1076655123

@@ -3,7 +3,7 @@ use sys
 use "term"
 use "termios"
 
-pkg termios =
+pkg termdraw =
 	type event = union
 		`Winsz (int, int)
 		`Gone

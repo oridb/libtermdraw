@@ -1,7 +1,7 @@
 use std
 use "termios"
 
-pkg termios =
+pkg termdraw =
 	type color = int
 	type attr = int
 
@@ -75,7 +75,7 @@ const mk = {fd
 		.buf=std.slalloc((ws.row * ws.col : std.size)),
 	])
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
-	termios.tcgetattr(t.fd, &t.orig)
+	tcgetattr(t.fd, &t.orig)
 	cls(t);
 	-> t
 }
@@ -84,18 +84,17 @@ const raw = {t
 	var tio
 
 	tio = t.orig
-	tio.iflag &= ~(termios.Brkint | termios.Icrnl | \
-		termios.Inpck | termios.Istrip | termios.Ixon)
-	tio.oflag &= ~termios.Opost
-	tio.cflag |= termios.Cs8
-	tio.lflag &= ~(termios.Echo | termios.Icanon | termios.Iexten | termios.Isig)
-	tio.cc[termios.Vmin] = 0
-	tio.cc[termios.Vtime] = 1
-	termios.tcsetattr(t.fd, `termios.Oflush, &tio)
+	tio.iflag &= ~(Brkint | Icrnl | Inpck | Istrip | Ixon)
+	tio.oflag &= ~termdraw.Opost
+	tio.cflag |= termdraw.Cs8
+	tio.lflag &= ~(Echo | Icanon | Iexten | Isig)
+	tio.cc[termdraw.Vmin] = 0
+	tio.cc[termdraw.Vtime] = 1
+	tcsetattr(t.fd, `termdraw.Oflush, &tio)
 }
 
 const free = {t
-	termios.tcsetattr(t.fd, `termios.Oflush, &t.orig)
+	tcsetattr(t.fd, `termdraw.Oflush, &t.orig)
 	std.fput(t.fd, "\x1bc")
 	std.slfree(t.buf)
 	std.free(t)

@@ -1,7 +1,7 @@
 use sys
 use std
 
-pkg termios =
+pkg termdraw =
 	type iflags = uint32
 	type oflags = uint32
 	type cflags = uint32
