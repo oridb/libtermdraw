@@ -49,6 +49,7 @@ pkg termdraw =
 	const move	: (t : term#, r : int, c : int -> void)
 
 	const cls	: (t : term# -> void)
+	const clear	: (t : term#, x0 : int, y0 : int, x1 : int, y1 : int -> void)
 	const flush	: (t : term# -> void)
 	const putc	: (t : term#, c : char -> void)
 	const put	: (t : term#, fmt : byte[:], args : ... -> void)
@@ -104,6 +105,31 @@ const cls = {t
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	std.fput(t.fd, "\x1b[2J")
 	move(t, 0, 0)
+}
+
+const clear = {t, x0, y0, x1, y1
+	var x, y
+
+	x0 = std.clamp(x0, 0, t.width)
+	y0 = std.clamp(y0, 0, t.height)
+	x1 = std.clamp(x1, 1, t.width)
+	y1 = std.clamp(y1, 1, t.height)
+
+	if x0 > x1
+		std.swap(&x0, &x1)
+	;;
+	if y0 > y1
+		std.swap(&y0, &y1)
+	;;
+
+	for y = y0; y != y1; y++
+		for x = x0; x != x1; x++
+			t.buf[y*t.width + x].bg = t.bg
+			t.buf[y*t.width + x].fg = t.fg
+			t.buf[y*t.width + x].chr = ' '
+		;;
+	;;
+
 }
 
 const flush = {t
