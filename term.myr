@@ -207,9 +207,16 @@ const putc = {t, c
 	var idx
 	
 	idx = t.cy * t.width + t.cx
+	if idx >= t.buf.len
+		-> void
+	;;
 	match c
 	| '\r':	t.cx = 0
 	| '\n': t.cy = std.min(t.cy + 1, t.height)
+	| '\t':
+		for var i = 0; i < 8; i++
+			putc(t, ' ')
+		;;
 	| chr:
 		t.buf[idx].chr = chr
 		t.buf[idx].fg = t.fg
