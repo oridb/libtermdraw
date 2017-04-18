@@ -47,6 +47,7 @@ pkg termdraw =
 
 	const size	: (t : term# -> (int, int))
 	const move	: (t : term#, r : int, c : int -> void)
+	const cursorpos	: (t : term#, r : int, c : int -> void)
 
 	const cls	: (t : term# -> void)
 	const clear	: (t : term#, x0 : int, y0 : int, x1 : int, y1 : int -> void)
@@ -70,7 +71,7 @@ const mk = {fd
 		.cx=0,
 		.cy=0,
 		.width=(ws.col : int),
-		.height=(ws.row : int),
+		.height=(ws.row: int),
 		.fg=Default,
 		.bg=Default,
 		.buf=std.slalloc((ws.row * ws.col : std.size)),
@@ -112,8 +113,8 @@ const clear = {t, x0, y0, x1, y1
 
 	x0 = std.clamp(x0, 0, t.width)
 	y0 = std.clamp(y0, 0, t.height)
-	x1 = std.clamp(x1, 1, t.width)
-	y1 = std.clamp(y1, 1, t.height)
+	x1 = std.clamp(x1, 0, t.width)
+	y1 = std.clamp(y1, 0, t.height)
 
 	if x0 > x1
 		std.swap(&x0, &x1)
@@ -133,15 +134,19 @@ const clear = {t, x0, y0, x1, y1
 }
 
 const flush = {t
-	var fg, bg, attr
+	var fg, bg, attr, len
 	var sb, s
 
 	sb = std.mksb()
-	move(t, 0, 0)
+	cursorpos(t, 0, 0)
 	fg = -1
 	bg = -1
 	attr = -1
 	for var i = 0; i < t.width * t.height; i++
+		if attr != t.buf[i].attr
+			attr = t.buf[i].attr;
+			std.sbfmt(sb, "\x1b[{}m", attr)
+		;;
 		if fg != t.buf[i].fg
 			fg = t.buf[i].fg;
 			std.sbfmt(sb, "\x1b[{}m", 30+fg)
@@ -150,16 +155,19 @@ const flush = {t
 			bg = t.buf[i].bg;
 			std.sbfmt(sb, "\x1b[{}m", 40+bg)
 		;;
-		if attr != t.buf[i].attr
-			attr = t.buf[i].attr;
-			std.sbfmt(sb, "\x1b[{}m", attr)
-		;;
 		std.sbputc(sb, t.buf[i].chr)
 	;;
+	len = 0
 	s = std.sbfin(sb)
-	std.write(t.fd, s)
+	while len != s.len
+		match std.write(t.fd, s)
+		| `std.Ok 0:	break
+		| `std.Ok n:	len += n
+		| `std.Err e:	std.fatal("could not flush: {}\n", e)
+		;;
+	;;
 	std.slfree(s)
-	move(t, t.cx, t.cy)
+	cursorpos(t, t.cx, t.cy)
 }
 
 const resize = {t, x, y
@@ -188,6 +196,10 @@ const size = {t
 const move = {t, x, y
 	t.cx = x
 	t.cy = y
+}
+
+const cursorpos = {t, x, y
+	move(t, x, y)
 	std.fput(t.fd, "\x1b[{};{}f", y + 1, x + 1)
 }
 
@@ -199,12 +211,11 @@ const putc = {t, c
 	| '\r':	t.cx = 0
 	| '\n': t.cy = std.min(t.cy + 1, t.height)
 	| chr:
-		t.buf[idx] = [
-			.chr = chr,
-			.fg = t.fg,
-			.bg = t.bg,
-			.attr = t.attr,
-		]
+		t.buf[idx].chr = chr
+		t.buf[idx].fg = t.fg
+		t.buf[idx].bg = t.bg
+		t.buf[idx].attr = t.attr
+
 		if t.cx > t.width
 			t.cy++ 
 		;;
