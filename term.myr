@@ -20,11 +20,14 @@ pkg termdraw =
 	const Italic	: attr = 3
 	const Underline	: attr = 4
 	const Blink	: attr = 5
+	const Invert	: attr = 7
 
 	type term = struct
 		fd	: std.fd
-		cx	: int
-		cy	: int
+		x	: int
+		y	: int
+		_cx	: int
+		_cy	: int
 		width	: int
 		height	: int
 		fg	: color
@@ -68,8 +71,8 @@ const mk = {fd
 	tcwinsize(fd, &ws)
 	t = std.mk([
 		.fd=fd,
-		.cx=0,
-		.cy=0,
+		.x=0,
+		.y=0,
 		.width=(ws.col : int),
 		.height=(ws.row: int),
 		.fg=Default,
@@ -137,11 +140,12 @@ const flush = {t
 	var fg, bg, attr, len
 	var sb, s
 
-	sb = std.mksb()
-	cursorpos(t, 0, 0)
 	fg = -1
 	bg = -1
 	attr = -1
+	sb = std.mksb()
+
+	std.sbfmt(sb, "\x1b[1;1f")
 	for var i = 0; i < t.width * t.height; i++
 		if attr != t.buf[i].attr
 			attr = t.buf[i].attr;
@@ -157,6 +161,8 @@ const flush = {t
 		;;
 		std.sbputc(sb, t.buf[i].chr)
 	;;
+	std.sbfmt(sb, "\x1b[{};{}f", t._cy + 1, t._cx + 1)
+
 	len = 0
 	s = std.sbfin(sb)
 	while len != s.len
@@ -167,7 +173,6 @@ const flush = {t
 		;;
 	;;
 	std.slfree(s)
-	cursorpos(t, t.cx, t.cy)
 }
 
 const resize = {t, x, y
@@ -194,25 +199,25 @@ const size = {t
 }
 
 const move = {t, x, y
-	t.cx = x
-	t.cy = y
+	t.x = x
+	t.y = y
 }
 
 const cursorpos = {t, x, y
-	move(t, x, y)
-	std.fput(t.fd, "\x1b[{};{}f", y + 1, x + 1)
+	t._cx = x
+	t._cy = y
 }
 
 const putc = {t, c
 	var idx
 	
-	idx = t.cy * t.width + t.cx
+	idx = t.y * t.width + t.x
 	if idx >= t.buf.len
 		-> void
 	;;
 	match c
-	| '\r':	t.cx = 0
-	| '\n': t.cy = std.min(t.cy + 1, t.height)
+	| '\r':	t.x = 0
+	| '\n': t.y = std.min(t.y + 1, t.height)
 	| '\t':
 		for var i = 0; i < 8; i++
 			putc(t, ' ')
@@ -223,10 +228,10 @@ const putc = {t, c
 		t.buf[idx].bg = t.bg
 		t.buf[idx].attr = t.attr
 
-		if t.cx > t.width
-			t.cy++ 
+		if t.x > t.width
+			t.y++ 
 		;;
-		t.cx = (t.cx + 1) % t.width
+		t.x = (t.x + 1) % t.width
 	;;
 }
 
