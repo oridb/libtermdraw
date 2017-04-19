@@ -9,13 +9,14 @@ pkg termdraw =
 		`Gone
 		`Ctrl char
 		`Kesc
+		`Kbksp
+		`Kdel
 		`Kup
 		`Kdown
 		`Kleft
 		`Kright
 		`Khome
 		`Kend
-		`Kdel
 		`Kpgup
 		`Kpgdn
 		`Kwut
@@ -119,7 +120,11 @@ const readchar = {b
 
 	;;
 	k = std.decode(buf[:n])
-	if k <= 0x1f
+	if k == '\r' || k  == '\n'
+		-> `Kc '\n'
+	elif k == '\b' || k == 0x7f
+		-> `Kbksp
+	elif k <= 0x1f
 		-> `Ctrl (k | 0x60)
 	else
 		-> `Kc k
