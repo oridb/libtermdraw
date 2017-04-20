@@ -26,8 +26,8 @@ pkg termdraw =
 		fd	: std.fd
 		x	: int
 		y	: int
-		_cx	: int
-		_cy	: int
+		cx	: int
+		cy	: int
 		width	: int
 		height	: int
 		fg	: color
@@ -161,7 +161,7 @@ const flush = {t
 		;;
 		std.sbputc(sb, t.buf[i].chr)
 	;;
-	std.sbfmt(sb, "\x1b[{};{}f", t._cy + 1, t._cx + 1)
+	std.sbfmt(sb, "\x1b[{};{}f", t.cy + 1, t.cx + 1)
 
 	len = 0
 	s = std.sbfin(sb)
@@ -204,8 +204,8 @@ const move = {t, x, y
 }
 
 const cursorpos = {t, x, y
-	t._cx = x
-	t._cy = y
+	t.cx = x
+	t.cy = y
 }
 
 const putc = {t, c
