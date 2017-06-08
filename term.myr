@@ -35,6 +35,7 @@ pkg termdraw =
 		attr	: attr
 		buf	: cell[:]
 		orig	: termios
+		cursor	: bool
 	;;
 
 	type cell = struct
@@ -51,6 +52,8 @@ pkg termdraw =
 	const size	: (t : term# -> (int, int))
 	const move	: (t : term#, r : int, c : int -> void)
 	const cursorpos	: (t : term#, r : int, c : int -> void)
+	const cursoroff	: (t : term# -> void)
+	const cursoron	: (t : term# -> void)
 
 	const cls	: (t : term# -> void)
 	const clear	: (t : term#, x0 : int, y0 : int, x1 : int, y1 : int -> void)
@@ -78,6 +81,7 @@ const mk = {fd
 		.fg=Default,
 		.bg=Default,
 		.buf=std.slalloc((ws.row * ws.col : std.size)),
+		.cursor=false
 	])
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	tcgetattr(t.fd, &t.orig)
@@ -96,6 +100,7 @@ const raw = {t
 	tio.cc[termdraw.Vmin] = 0
 	tio.cc[termdraw.Vtime] = 1
 	tcsetattr(t.fd, `termdraw.Oflush, &tio)
+	cursoroff(t)
 }
 
 const free = {t
@@ -145,6 +150,8 @@ const flush = {t
 	attr = -1
 	sb = std.mksb()
 
+	/* hide cursor, move to top, and draw everything */
+	std.sbfmt(sb, "\x1b[?25l")
 	std.sbfmt(sb, "\x1b[1;1f")
 	for var i = 0; i < t.width * t.height; i++
 		if attr != t.buf[i].attr
@@ -161,7 +168,11 @@ const flush = {t
 		;;
 		std.sbputc(sb, t.buf[i].chr)
 	;;
+	/* restore cursor state */
 	std.sbfmt(sb, "\x1b[{};{}f", t.cy + 1, t.cx + 1)
+	if t.cursor
+		std.sbfmt(sb, "\x1b[?25h")
+	;;
 
 	len = 0
 	s = std.sbfin(sb)
@@ -206,6 +217,14 @@ const move = {t, x, y
 const cursorpos = {t, x, y
 	t.cx = x
 	t.cy = y
+}
+
+const cursoroff = {t
+	t.cursor = false
+}
+
+const cursoron = {t
+	t.cursor = true
 }
 
 const putc = {t, c
