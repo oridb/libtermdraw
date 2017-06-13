@@ -23,7 +23,8 @@ pkg termdraw =
 		`Kc char
 	;;
 
-	const event : (t : term# -> event)
+	const event	: (t : term# -> event)
+	const checksize	: (t : term# -> void)
 ;;
 
 const Esc = 27
@@ -44,8 +45,7 @@ const winch = {;
 }
 
 const event = {t
-	var wc, c
-	var x, y
+	var c
 
 	while true
 		/*
@@ -54,12 +54,9 @@ const event = {t
 		*/
 		c = winchanges
 		if c > winreported
-			tcwinsize(t.fd, &wc)
 			winreported = c
-			x = (wc.col : int)
-			y = (wc.row : int)
-			resize(t, x, y)
-			-> `Winsz (x, y)
+			checksize(t)
+			-> `Winsz (t.x, t.y)
 		;;
 
 		match readb(t.fd)
@@ -69,6 +66,15 @@ const event = {t
 		;;
 	;;
 	-> `Gone
+}
+
+const checksize = {t
+	var wc, x, y
+
+	tcwinsize(t.fd, &wc)
+	x = (wc.col : int)
+	y = (wc.row : int)
+	resize(t, x, y)
 }
 
 const readesc = {
