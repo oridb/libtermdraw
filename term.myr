@@ -167,6 +167,9 @@ const flush = {t
 			std.sbfmt(sb, "\x1b[{}m", 40+bg)
 		;;
 		std.sbputc(sb, t.buf[i].chr)
+		if i % t.width == t.width - 1 && i != t.width * t.height - 1
+			std.sbfmt(sb, "\r\n")
+		;;
 	;;
 	/* restore cursor state */
 	std.sbfmt(sb, "\x1b[{};{}f", t.cy + 1, t.cx + 1)
