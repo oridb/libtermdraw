@@ -177,7 +177,7 @@ const flush = {t
 	len = 0
 	s = std.sbfin(sb)
 	while len != s.len
-		match std.write(t.fd, s)
+		match std.write(t.fd, s[len:])
 		| `std.Ok 0:	break
 		| `std.Ok n:	len += n
 		| `std.Err e:	std.fatal("could not flush: {}\n", e)
