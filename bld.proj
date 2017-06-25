@@ -2,6 +2,7 @@ lib termdraw =
 	termios+freebsd.myr
 	termios+openbsd.myr
 	termios+linux.myr
+	termios+osx.myr
 	term.myr
 	termevent.myr
 ;;
