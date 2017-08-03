@@ -262,7 +262,7 @@ const put = {t, fmt, args
 
 	ap = std.vastart(&args)
 	s = std.fmtv(fmt, &ap)
-	for c in std.bychar(s)
+	for c : std.bychar(s)
 		putc(t, c)
 	;;
 	std.slfree(s)
