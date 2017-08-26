@@ -55,6 +55,8 @@ pkg termdraw =
 	const cursoroff	: (t : term# -> void)
 	const cursoron	: (t : term# -> void)
 
+	const strwidth	: (t : term#, str : byte[:] -> int)
+
 	const cls	: (t : term# -> void)
 	const clear	: (t : term#, x0 : int, y0 : int, x1 : int, y1 : int -> void)
 	const flush	: (t : term# -> void)
@@ -230,13 +232,29 @@ const cursoron = {t
 	t.cursor = true
 }
 
+const strwidth = {t, str
+	var x0, x
+
+	x = t.x
+	x0 = t.x
+	for c : std.bychar(str)
+		match c
+		| '\t':	x = (x / 8 + 1)*8
+		| '\n':	/* ignore */
+		| chr:	x++
+		;;
+	;;
+	-> x - x0
+}
+
 const putc = {t, c
 	var idx
 	
-	idx = t.y * t.width + t.x
-	if idx >= t.buf.len
+	if t.x >= t.width || t.y >= t.height
 		-> void
 	;;
+
+	idx = t.y * t.width + t.x
 	match c
 	| '\r':	t.x = 0
 	| '\n': t.y = std.min(t.y + 1, t.height)
