@@ -1,0 +1,275 @@
+use std
+use bio
+use fileutil
+
+use "tiprops"
+
+pkg termdraw =
+	type err = union
+		`Enoterm
+		`Ecorrupt
+		`Eio
+		`Eimpl
+	;;
+
+	type terminfo = struct
+		name	: byte[:]
+		bool	: bool[:]
+		num	: int16[:]
+		str	: byte[:][:]
+	;;
+
+	const tiparse	: (term : byte[:] -> std.result(terminfo, err))
+	const getbool	: (ti : terminfo#, prop : int -> std.option(bool))
+	const getnum	: (ti : terminfo#, prop : int -> std.option(int16))
+	const getstr	: (ti : terminfo#, prop : int -> std.option(byte[:]))
+;;
+
+const tiparse = {term -> std.result(terminfo, err)
+	var ti : terminfo
+
+	match tiopen(term)
+	| `std.Err e:	-> `std.Err e
+	| `std.Ok f:
+		match tiparsef(f, &ti)
+		| `std.Err e:	-> `std.Err e
+		| `std.Ok r:	-> `std.Ok ti
+		;;
+	;;
+}
+
+const getbool = {ti, b
+	if b >= 0 && b < ti.bool.len
+		-> `std.Some ti.bool[b]
+	else
+		-> `std.None
+	;;
+}
+
+const getnum = {ti, n
+	if n >= 0 && n < ti.num.len
+		-> `std.Some ti.num[n]
+	else
+		-> `std.None
+	;;
+}
+
+const getstr = {ti, s
+	if s >= 0 && s < ti.str.len && ti.str[s].len != 0
+		-> `std.Some ti.str[s]
+	else
+		-> `std.None
+	;;
+}
+
+const tiparsef = {f, ti
+	var nnam, nbool, nnum, nstr, ntab
+
+	match bio.getle16(f)
+	| `bio.Ok 0x11a:	/* normal tab */
+	| `bio.Ok 0x162:	/* extended tab */
+	| `bio.Ok badmagic:	-> `std.Err `Ecorrupt
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	match bio.getle16(f)
+	| `bio.Ok nn:	nnam = nn
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	match bio.getle16(f)
+	| `bio.Ok nb:	nbool = nb
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	match bio.getle16(f)
+	| `bio.Ok nn:	nnum = nn
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	match bio.getle16(f)
+	| `bio.Ok ns:	nstr = ns
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	match bio.getle16(f)
+	| `bio.Ok nt:	ntab = nt
+	| `bio.Err _:	-> `std.Err `Ecorrupt
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	ti# = [
+		.name=std.slalloc(nnam),
+		.bool=std.slalloc(nbool),
+		.num=std.slalloc(nnum),
+		.str=std.slalloc(nstr),
+	]
+
+	tiname(ti, f, nnam)
+	tibools(ti, f, nbool)
+	tinums(ti, f, nnum)
+	if (nnam + nbool & 0x1) != 0
+		match bio.getc(f)
+		| `bio.Ok _:	/* padding */
+		| _:		goto err
+		;;
+	;;
+	tistrs(ti, f, nstr, ntab)
+
+	-> `std.Ok ""
+
+:err
+	tifree(ti)
+	-> `std.Err `Ecorrupt
+}
+
+const tiname = {ti, f, nnam
+	match bio.read(f, ti.name)
+	| `bio.Ok n:
+		if n.len != nnam
+			-> `std.Err `Ecorrupt
+		;;
+	| `bio.Err _:	-> `std.Err `Eio
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+	-> `std.Ok ti
+}
+
+const tibools = {ti, f, nbool
+	for var i = 0; i < nbool; i++
+		match bio.getb(f)
+		| `bio.Ok 0:	ti.bool[i] = false
+		| `bio.Ok _:	ti.bool[i] = true
+		| `bio.Err _:	-> `std.Err `Eio
+		| `bio.Eof:	-> `std.Err `Ecorrupt
+		;;
+	;;
+	-> `std.Ok void
+}
+
+const tinums = {ti, f, nnum
+	for var i = 0; i < nnum; i++
+		match bio.getle16(f)
+		| `bio.Ok n:	std.slpush(&ti.num, n)
+		| `bio.Err _:	-> `std.Err `Eio
+		| `bio.Eof:	-> `std.Err `Ecorrupt
+		;;
+	;;
+	-> `std.Ok void
+}
+
+const tistrs = {ti, f, nstr, ntab
+	var s, i, str, tab
+
+	str = [][:]
+	for var i = 0; i < nstr; i++
+		match bio.getle16(f)
+		| `bio.Ok sid:	std.slpush(&str, sid)
+		| `bio.Err _:	-> `std.Err `Eio
+		| `bio.Eof:	-> `std.Err `Ecorrupt
+		;;
+	;;
+
+	tab = std.slalloc(ntab)
+	match bio.read(f, tab)
+	| `bio.Ok t:
+		if t.len != ntab
+			-> `std.Err `Ecorrupt
+		;;
+	| `bio.Err _:	-> `std.Err `Eio
+	| `bio.Eof:	-> `std.Err `Ecorrupt
+	;;
+
+	i = 0
+	for off : str
+		if off == 0xffff
+			ti.str[i++] = ""
+		elif  off >= tab.len
+			i++
+			std.put("invalid: {}\n", i)
+		else
+			s = std.cstrconv(tab[off:])
+			ti.str[i++] = std.sldup(s)
+		;;
+	;;
+	std.slfree(str)
+	-> `std.Ok void
+}
+
+const tiopen = {term
+	var h, p, pfx, pbuf : byte[256]
+
+	pfx = ""
+	if term.len > 0
+		pfx = term[:1]
+	;;
+
+	match std.getenv("TERMINFO")
+	| `std.None:	/* next */
+	| `std.Some dir:
+		p = std.bfmt(pbuf[:], "{}/{}/{}", dir, pfx, term)
+		match bio.open(p, bio.Rd)
+		| `std.Ok f:	-> `std.Ok f
+		| `std.Err _:	-> `std.Err `Enoterm
+		;;
+	;;
+
+	match std.getenv("TERMINFO_DIRS")
+	| `std.None:	/* next */
+	| `std.Some dirs:
+		for dir : std.bysplit(dirs, "")
+			if dir.len == 0
+				dir = "/etc/terminfo"
+			;;
+			p = std.bfmt(pbuf[:], "{}/{}/{}", dir, pfx, term)
+			match bio.open(p, bio.Rd)
+			| `std.Ok f:	-> `std.Ok f
+			| `std.Err _:	/* next */
+			;;
+		;;
+	;;
+
+	h = fileutil.homedir()
+	p = std.bfmt(pbuf[:], "{}/.terminfo/{}/{}", h, pfx, term)
+	std.put("path: {}\n", p)
+	match bio.open(p, bio.Rd)
+	| `std.Ok f:	-> `std.Ok f
+	| `std.Err _:	/* next */
+	;;
+
+	p = std.bfmt(pbuf[:], "/etc/terminfo/{}/{}", pfx, term)
+	std.put("path: {}\n", p)
+	match bio.open(p, bio.Rd)
+	| `std.Ok f:	-> `std.Ok f
+	| `std.Err _:	/* next */
+	;;
+
+	p = std.bfmt(pbuf[:], "/lib/terminfo/{}/{}", pfx, term)
+	std.put("path: {}\n", p)
+	match bio.open(p, bio.Rd)
+	| `std.Ok f:	-> `std.Ok f
+	| `std.Err _:	/* next */
+	;;
+
+	p = std.bfmt(pbuf[:], "/usr/share/terminfo/{}/{}", pfx, term)
+	std.put("path: {}\n", p)
+	match bio.open(p, bio.Rd)
+	| `std.Ok f:	-> `std.Ok f
+	| `std.Err _:	/* next */
+	;;
+
+	-> `std.Err `Enoterm
+}
+
+const tifree = {ti
+	std.slfree(ti.name)
+	std.slfree(ti.bool)
+	std.slfree(ti.num)
+	std.slfree(ti.str)
+	std.free(ti)
+}

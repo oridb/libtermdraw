@@ -1,5 +1,7 @@
 use std
+
 use "termios"
+use "tiparse"
 
 pkg termdraw =
 	type color = int
@@ -36,6 +38,8 @@ pkg termdraw =
 		buf	: cell[:]
 		orig	: termios
 		cursor	: bool
+
+		info	: terminfo
 	;;
 
 	type cell = struct
