@@ -74,8 +74,7 @@ pkg termdraw =
 ;;
 
 const mk = {fd
-	var ws
-	var t
+	var ws, t, name
 
 	tcwinsize(fd, &ws)
 	t = std.mk([
@@ -89,6 +88,11 @@ const mk = {fd
 		.buf=std.slalloc((ws.row * ws.col : std.size)),
 		.cursor=false
 	])
+	name = std.getenvv("TERM", "vt100")
+	match tiparse(name)
+	| `std.Ok inf:	t.info = inf
+	| `std.Err e:	/* whatevs */
+	;;
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	tcgetattr(t.fd, &t.orig)
 	cls(t);
