@@ -24,7 +24,6 @@ pkg termdraw =
 	const Blink	: attr = 5
 	const Invert	: attr = 7
 
-
 	const mk	: (fd : std.fd -> term#)
 	const free	: (t : term# -> void)
 	const raw	: (t : term# -> void)
@@ -197,6 +196,7 @@ const addevent = {t, key, fallback, ev
 }
 
 const cls = {t
+	damage(t, 0, 0, t.width, t.height)
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	std.fput(t.fd, "\x1b[2J")
 	move(t, 0, 0)
@@ -217,6 +217,7 @@ const clear = {t, x0, y0, x1, y1
 		std.swap(&y0, &y1)
 	;;
 
+	damage(t, x0, y0, x1, y1)
 	for y = y0; y != y1; y++
 		for x = x0; x != x1; x++
 			t.buf[y*t.width + x].bg = t.bg
@@ -335,25 +336,33 @@ const flush = {t
 	attr = -1
 	sb = std.mksb()
 
-	/* hide cursor, move to top, and draw everything */
+	if t.damx0 == -1 || t.damy0 == -1
+		-> void
+	;;
+	/* hide cursor, move to top of damage region, and draw */
 	tfmt(t, sb, Cursor_invisible, "\x1b[?25l", [][:])
-	tfmt(t, sb, Cursor_address, "\x1b[%i%p1%d;%p2%df", [`Int 0, `Int 0][:])
-	for var i = 0; i < t.width * t.height; i++
-		if attr != t.buf[i].attr
-			attr = t.buf[i].attr;
-			std.sbfmt(sb, "\x1b[{}m", attr)
-		;;
-		if !samecolor(fg, t.buf[i].fg)
-			fg = t.buf[i].fg;
-			applycolor(sb, fg, 3)
-		;;
-		if !samecolor(bg, t.buf[i].bg)
-			bg = t.buf[i].bg;
-			applycolor(sb, bg, 4)
-		;;
-		std.sbputc(sb, t.buf[i].chr)
-		if i % t.width == t.width - 1 && i != t.width * t.height - 1
-			std.sbfmt(sb, "\r\n")
+	for var y = t.damy0; y < t.damy1; y++
+		fg = `Palette8 -1
+		bg = `Palette8 -1
+		attr = -1
+		tfmt(t, sb, Cursor_address, \
+			"\x1b[%i%p1%d;%p2%df", \
+			[`Int y, `Int t.damx0][:])
+		for var x = t.damx0; x < t.damx1; x++
+			var i = (y * t.width) + x
+			if attr != t.buf[i].attr
+				attr = t.buf[i].attr;
+				std.sbfmt(sb, "\x1b[{}m", attr)
+			;;
+			if !samecolor(fg, t.buf[i].fg)
+				fg = t.buf[i].fg;
+				applycolor(sb, fg, 3)
+			;;
+			if !samecolor(bg, t.buf[i].bg)
+				bg = t.buf[i].bg;
+				applycolor(sb, bg, 4)
+			;;
+			std.sbputc(sb, t.buf[i].chr)
 		;;
 	;;
 	/* restore cursor state */
@@ -372,6 +381,10 @@ const flush = {t
 		;;
 	;;
 	std.slfree(s)
+
+	/* clear damage */
+	damage(t, -1, -1, -1, -1)
+
 }
 
 const resize = {t, x, y
@@ -437,6 +450,7 @@ const putc = {t, c
 		-> void
 	;;
 
+	damage(t, t.x, t.y, t.x+1, t.y+1)
 	idx = t.y * t.width + t.x
 	match c
 	| '\r':	t.x = 0
@@ -485,5 +499,19 @@ const tfmt = {t, sb, prop, fb, params
 	match tigetstr(&t.info, prop)
 	| `std.Some s:	tifmt(&t.fmt, sb, s, params)
 	| `std.None:	tifmt(&t.fmt, sb, fb, params)
+	;;
+}
+
+const damage = {t, x0, y0, x1, y1
+	if t.damx0 == -1 || x0 == -1
+		t.damx0 = x0
+		t.damy0 = y0
+		t.damx1 = x1
+		t.damy1 = y1
+	else
+		t.damx0 = std.min(x0, t.damx0)
+		t.damy0 = std.min(y0, t.damy0)
+		t.damx1 = std.max(x1, t.damx1)
+		t.damy1 = std.max(y1, t.damy1)
 	;;
 }

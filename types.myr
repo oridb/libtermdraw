@@ -62,6 +62,12 @@ pkg termdraw =
 		ncolors : uint
 		hasrgb	: bool
 
+		/* redraw bounds */
+		damx0	: int
+		damy0	: int
+		damx1	: int
+		damy1	: int
+
 		info	: terminfo
 		fmt	: tifmt
 		kesc	: evtrie#
