@@ -66,41 +66,35 @@ const tiparsef = {f, ti
 	var nnam, nbool, nnum, nstr, ntab
 
 	match bio.getle16(f)
-	| `bio.Ok 0x11a:	/* normal tab */
-	| `bio.Ok 0x162:	/* extended tab */
-	| `bio.Ok badmagic:	-> `std.Err `Ecorrupt
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok 0x11a:	/* normal tab */
+	| `std.Ok 0x162:	/* extended tab */
+	| `std.Ok badmagic:	-> `std.Err `Ecorrupt
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	match bio.getle16(f)
-	| `bio.Ok nn:	nnam = nn
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok nn:	nnam = nn
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	match bio.getle16(f)
-	| `bio.Ok nb:	nbool = nb
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok nb:	nbool = nb
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	match bio.getle16(f)
-	| `bio.Ok nn:	nnum = nn
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok nn:	nnum = nn
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	match bio.getle16(f)
-	| `bio.Ok ns:	nstr = ns
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok ns:	nstr = ns
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	match bio.getle16(f)
-	| `bio.Ok nt:	ntab = nt
-	| `bio.Err _:	-> `std.Err `Ecorrupt
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Ok nt:	ntab = nt
+	| `std.Err _:	-> `std.Err `Ecorrupt
 	;;
 
 	ti# = [
@@ -115,7 +109,7 @@ const tiparsef = {f, ti
 	tinums(ti, f, nnum)
 	if (nnam + nbool & 0x1) != 0
 		match bio.getc(f)
-		| `bio.Ok _:	/* padding */
+		| `std.Ok _:	/* padding */
 		| _:		goto err
 		;;
 	;;
@@ -130,12 +124,11 @@ const tiparsef = {f, ti
 
 const tiname = {ti, f, nnam
 	match bio.read(f, ti.name)
-	| `bio.Ok n:
+	| `std.Ok n:
 		if n.len != nnam
 			-> `std.Err `Ecorrupt
 		;;
-	| `bio.Err _:	-> `std.Err `Eio
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Err _:	-> `std.Err `Eio
 	;;
 	-> `std.Ok ti
 }
@@ -143,10 +136,9 @@ const tiname = {ti, f, nnam
 const tibools = {ti, f, nbool
 	for var i = 0; i < nbool; i++
 		match bio.getb(f)
-		| `bio.Ok 0:	ti.bool[i] = false
-		| `bio.Ok _:	ti.bool[i] = true
-		| `bio.Err _:	-> `std.Err `Eio
-		| `bio.Eof:	-> `std.Err `Ecorrupt
+		| `std.Ok 0:	ti.bool[i] = false
+		| `std.Ok _:	ti.bool[i] = true
+		| `std.Err _:	-> `std.Err `Eio
 		;;
 	;;
 	-> `std.Ok void
@@ -155,9 +147,8 @@ const tibools = {ti, f, nbool
 const tinums = {ti, f, nnum
 	for var i = 0; i < nnum; i++
 		match bio.getle16(f)
-		| `bio.Ok n:	std.slpush(&ti.num, n)
-		| `bio.Err _:	-> `std.Err `Eio
-		| `bio.Eof:	-> `std.Err `Ecorrupt
+		| `std.Ok n:	std.slpush(&ti.num, n)
+		| `std.Err _:	-> `std.Err `Eio
 		;;
 	;;
 	-> `std.Ok void
@@ -169,20 +160,18 @@ const tistrs = {ti, f, nstr, ntab
 	str = [][:]
 	for var i = 0; i < nstr; i++
 		match bio.getle16(f)
-		| `bio.Ok sid:	std.slpush(&str, sid)
-		| `bio.Err _:	-> `std.Err `Eio
-		| `bio.Eof:	-> `std.Err `Ecorrupt
+		| `std.Ok sid:	std.slpush(&str, sid)
+		| `std.Err _:	-> `std.Err `Eio
 		;;
 	;;
 
 	tab = std.slalloc(ntab)
 	match bio.read(f, tab)
-	| `bio.Ok t:
+	| `std.Ok t:
 		if t.len != ntab
 			-> `std.Err `Ecorrupt
 		;;
-	| `bio.Err _:	-> `std.Err `Eio
-	| `bio.Eof:	-> `std.Err `Ecorrupt
+	| `std.Err _:	-> `std.Err `Eio
 	;;
 
 	i = 0
