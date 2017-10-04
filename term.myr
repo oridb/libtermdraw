@@ -71,9 +71,32 @@ const mk = {fd
 	;;
 	addevents(t)
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
+	std.fput(t.fd, std.getv(tigetstr(&t.info, Keypad_xmit), ""))
 	tcgetattr(t.fd, &t.orig)
 	cls(t);
 	-> t
+}
+
+const free = {t
+	std.fput(t.fd, std.getv(tigetstr(&t.info, Keypad_local), ""))
+	tcsetattr(t.fd, `termdraw.Oflush, &t.orig)
+	std.fput(t.fd, "\x1bc")
+	std.slfree(t.buf)
+	std.free(t)
+}
+
+const raw = {t
+	var tio
+
+	tio = t.orig
+	tio.iflag &= ~(Brkint | Icrnl | Inpck | Istrip | Ixon)
+	tio.oflag &= ~termdraw.Opost
+	tio.cflag |= termdraw.Cs8
+	tio.lflag &= ~(Echo | Icanon | Iexten | Isig)
+	tio.cc[termdraw.Vmin] = 0
+	tio.cc[termdraw.Vtime] = 1
+	tcsetattr(t.fd, `termdraw.Oflush, &tio)
+	cursoroff(t)
 }
 
 const addevents = {t
@@ -98,8 +121,13 @@ const addevents = {t
 	addevent(t, -1, "\x1b[D", `Kright)
 
 	/* keys from terminfo */
+	addevent(t, Key_up, "", `Kup)
+	addevent(t, Key_down, "", `Kdown)
+	addevent(t, Key_left, "", `Kleft)
+	addevent(t, Key_right, "", `Kright)
+
 	addevent(t, Key_backspace, "\b", `Kbksp)
-	addevent(t, Delete_character, "\x1b[~3", `Kdel)
+	addevent(t, Key_dc, "\x1b[~3", `Kdel)
 	addevent(t, Tab, "\x09", `Kc '\t')
 	addevent(t, Key_npage, "", `Kpgdn)
 	addevent(t, Key_ppage, "", `Kpgup)
@@ -137,27 +165,6 @@ const addevent = {t, key, fallback, ev
 	;;
 	n.ev = ev
 	std.put("{e}\n", seq)
-}
-
-const raw = {t
-	var tio
-
-	tio = t.orig
-	tio.iflag &= ~(Brkint | Icrnl | Inpck | Istrip | Ixon)
-	tio.oflag &= ~termdraw.Opost
-	tio.cflag |= termdraw.Cs8
-	tio.lflag &= ~(Echo | Icanon | Iexten | Isig)
-	tio.cc[termdraw.Vmin] = 0
-	tio.cc[termdraw.Vtime] = 1
-	tcsetattr(t.fd, `termdraw.Oflush, &tio)
-	cursoroff(t)
-}
-
-const free = {t
-	tcsetattr(t.fd, `termdraw.Oflush, &t.orig)
-	std.fput(t.fd, "\x1bc")
-	std.slfree(t.buf)
-	std.free(t)
 }
 
 const cls = {t
