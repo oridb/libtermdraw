@@ -83,7 +83,7 @@ const addevents = {t
 	for var i = 0; i < 128; i++
 		s[0] = (i : byte)
 		if i < 0x1f
-			addevent(t, -1, s[:], `Ctrl i | 0x60)
+			addevent(t, -1, s[:], `Ctrl (i | 0x60))
 		else
 			addevent(t, -1, s[:], `Kc i)
 		;;
