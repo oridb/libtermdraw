@@ -4,7 +4,7 @@ lib termdraw =
 	termios+linux.myr
 	termios+osx.myr
 	term.myr
-	termevent.myr
+	event.myr
 
 	# terminfo
 	tiparse.myr
