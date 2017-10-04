@@ -2,27 +2,13 @@ use std
 use bio
 use fileutil
 
-use "tiprops"
+use "types"
 
 pkg termdraw =
-	type err = union
-		`Enoterm
-		`Ecorrupt
-		`Eio
-		`Eimpl
-	;;
-
-	type terminfo = struct
-		name	: byte[:]
-		bool	: bool[:]
-		num	: int16[:]
-		str	: byte[:][:]
-	;;
-
 	const tiparse	: (term : byte[:] -> std.result(terminfo, err))
-	const getbool	: (ti : terminfo#, prop : int -> std.option(bool))
-	const getnum	: (ti : terminfo#, prop : int -> std.option(int16))
-	const getstr	: (ti : terminfo#, prop : int -> std.option(byte[:]))
+	const tigetbool	: (ti : terminfo#, prop : int -> std.option(bool))
+	const tigetnum	: (ti : terminfo#, prop : int -> std.option(int16))
+	const tigetstr	: (ti : terminfo#, prop : int -> std.option(byte[:]))
 ;;
 
 const tiparse = {term -> std.result(terminfo, err)
@@ -38,7 +24,7 @@ const tiparse = {term -> std.result(terminfo, err)
 	;;
 }
 
-const getbool = {ti, b
+const tigetbool = {ti, b
 	if b >= 0 && b < ti.bool.len
 		-> `std.Some ti.bool[b]
 	else
@@ -46,7 +32,7 @@ const getbool = {ti, b
 	;;
 }
 
-const getnum = {ti, n
+const tigetnum = {ti, n
 	if n >= 0 && n < ti.num.len
 		-> `std.Some ti.num[n]
 	else
@@ -54,7 +40,7 @@ const getnum = {ti, n
 	;;
 }
 
-const getstr = {ti, s
+const tigetstr = {ti, s
 	if s >= 0 && s < ti.str.len && ti.str[s].len != 0
 		-> `std.Some ti.str[s]
 	else
@@ -180,7 +166,6 @@ const tistrs = {ti, f, nstr, ntab
 			ti.str[i++] = ""
 		elif  off >= tab.len
 			i++
-			std.put("invalid: {}\n", i)
 		else
 			s = std.cstrconv(tab[off:])
 			ti.str[i++] = std.sldup(s)
@@ -225,28 +210,24 @@ const tiopen = {term
 
 	h = fileutil.homedir()
 	p = std.bfmt(pbuf[:], "{}/.terminfo/{}/{}", h, pfx, term)
-	std.put("path: {}\n", p)
 	match bio.open(p, bio.Rd)
 	| `std.Ok f:	-> `std.Ok f
 	| `std.Err _:	/* next */
 	;;
 
 	p = std.bfmt(pbuf[:], "/etc/terminfo/{}/{}", pfx, term)
-	std.put("path: {}\n", p)
 	match bio.open(p, bio.Rd)
 	| `std.Ok f:	-> `std.Ok f
 	| `std.Err _:	/* next */
 	;;
 
 	p = std.bfmt(pbuf[:], "/lib/terminfo/{}/{}", pfx, term)
-	std.put("path: {}\n", p)
 	match bio.open(p, bio.Rd)
 	| `std.Ok f:	-> `std.Ok f
 	| `std.Err _:	/* next */
 	;;
 
 	p = std.bfmt(pbuf[:], "/usr/share/terminfo/{}/{}", pfx, term)
-	std.put("path: {}\n", p)
 	match bio.open(p, bio.Rd)
 	| `std.Ok f:	-> `std.Ok f
 	| `std.Err _:	/* next */

@@ -1,12 +1,20 @@
 lib termdraw =
+	types.myr
+	term.myr
+	event.myr
+
+	# os interfaces
 	termios+freebsd.myr
 	termios+openbsd.myr
 	termios+linux.myr
 	termios+osx.myr
-	term.myr
-	event.myr
 
 	# terminfo
 	tiparse.myr
 	tiprops.myr
+;;
+
+bin td =
+	td.myr
+	lib termdraw
 ;;

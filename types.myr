@@ -1,0 +1,89 @@
+use std
+
+use "termios"
+
+pkg termdraw =
+	type color = int
+	type attr = int
+
+	type event = union
+		/* misc events */
+		`Kwut
+		`Winsz (int, int)
+		`Gone
+
+		/* special keys */
+		`Ctrl char
+		`Kesc
+		`Kbksp
+		`Kdel
+		`Kup
+		`Kdown
+		`Kleft
+		`Kright
+		`Khome
+		`Kend
+		`Kpgup
+		`Kpgdn
+		/* f keys */
+		`Kf1
+		`Kf2
+		`Kf3
+		`Kf4
+		`Kf5
+		`Kf6
+		`Kf7
+		`Kf8
+		`Kf9
+		`Kf10
+		`Kf11
+		/* alphabet shit */
+		`Kc char
+	;;
+
+	type term = struct
+		fd	: std.fd
+		x	: int
+		y	: int
+		cx	: int
+		cy	: int
+		width	: int
+		height	: int
+		fg	: color
+		bg	: color
+		attr	: attr
+		buf	: cell[:]
+		orig	: termios
+		cursor	: bool
+
+		info	: terminfo
+		kesc	: evtrie#
+	;;
+
+	type cell = struct
+		chr	: char
+		attr	: attr
+		fg	: color
+		bg	: color
+	;;
+
+	type evtrie = struct
+		ev	: event
+		sub	: std.option(evtrie#)[256]
+	;;
+
+	type err = union
+		`Enoterm
+		`Ecorrupt
+		`Eio
+		`Eimpl
+	;;
+
+	type terminfo = struct
+		name	: byte[:]
+		bool	: bool[:]
+		num	: int16[:]
+		str	: byte[:][:]
+	;;
+
+;;

@@ -1,0 +1,21 @@
+use std
+use termdraw
+
+const main = {
+	var t, ev
+
+	t = termdraw.mk(std.In)
+	termdraw.raw(t)
+	termdraw.cls(t)
+	while true
+		ev = termdraw.event(t)
+		std.put("\r{}\n", ev)
+		match ev
+		| `termdraw.Kc 'q':	break
+		| `termdraw.Kc c:	std.put("chr {}\n", c)
+		| _:
+		;;
+	;;
+	termdraw.free(t)
+}
+

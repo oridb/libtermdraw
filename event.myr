@@ -1,28 +1,11 @@
 use std
 use sys
+
+use "types"
 use "term"
 use "termios"
 
 pkg termdraw =
-	type event = union
-		`Winsz (int, int)
-		`Gone
-		`Ctrl char
-		`Kesc
-		`Kbksp
-		`Kdel
-		`Kup
-		`Kdown
-		`Kleft
-		`Kright
-		`Khome
-		`Kend
-		`Kpgup
-		`Kpgdn
-		`Kwut
-		`Kc char
-	;;
-
 	const event	: (t : term# -> event)
 	const checksize	: (t : term# -> void)
 ;;
@@ -59,10 +42,9 @@ const event = {t
 			-> `Winsz (t.x, t.y)
 		;;
 
-		match readb(t.fd)
-		| 0:	continue
-		| Esc:	-> readesc()
-		| b:	-> readchar(b)
+		match readkey(t)
+		| `std.Some e:	-> e
+		| `std.None:	continue
 		;;
 	;;
 	-> `Gone
@@ -77,66 +59,37 @@ const checksize = {t
 	resize(t, x, y)
 }
 
-const readesc = {
-	var seq : byte[3]
-
-	seq[0] = readb(std.In)
-	seq[1] = readb(std.In)
-	if seq[0] == 0 || seq[1] == 0
-		-> `Kesc
-	;;
-
-	/* ESC [ sequences. */
-	match seq[:2]
-	| "[A":	-> `Kup;
-	| "[B":	-> `Kdown
-	| "[C":	-> `Kright
-	| "[D":	-> `Kleft
-	| "[H":	-> `Khome
-	| "[F":	-> `Kend
-	| "0H":	-> `Khome
-	| "0F":	-> `Kend
-	| _:
-		seq[2] = readb(std.In)
-		if seq[2] == 0
-			-> `Kesc
-		;;
-		match seq[:3]
-		| "[~3":	-> `Kdel
-		| "[~5":	-> `Kpgup
-		| "[~6":	-> `Kpgdn
-		| wut:		-> `Kwut
-		;;
-	;;
-}
-
-const readchar = {b
+const readkey = {t
 	var buf : byte[4]
-	var n, k
-
-	buf[0] = b
-	n = 1
-	if (b > 0x80)
-		match std.read(std.In, buf[1:])
-		| `std.Ok c:	n += c
+	var n, b
+	
+	b = readb(t.fd)
+	if b == 0
+		-> `std.None
+	elif b >= 0x80
+		match std.read(t.fd, buf[1:])
+		| `std.Ok len:
+			buf[0] = b
+			-> `std.Some `Kc std.decode(buf[:len+1])
 		| `std.Err e:
-			std.put("error reading input: {}\n", e)
-			std.fatal("exiting..\n", e)
+			std.close(t.fd)
+			-> `std.Some `Gone
 		;;
-
-	;;
-	k = std.decode(buf[:n])
-	if k == '\r' || k  == '\n'
-		-> `Kc '\n'
-	elif k == '\b' || k == 0x7f
-		-> `Kbksp
-	elif k <= 0x1f
-		-> `Ctrl (k | 0x60)
 	else
-		-> `Kc k
+		n = t.kesc
+		while true
+			if b == 0
+				-> `std.Some n.ev
+			;;
+			match n.sub[b]
+			| `std.Some nn:	n = nn
+			| `std.None:	-> `std.Some n.ev
+			;;
+			b = readb(t.fd)
+		;;
 	;;
+	-> `std.None
 }
-
 
 const readb = {fd
 	var buf : byte[1]

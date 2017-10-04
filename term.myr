@@ -1,12 +1,11 @@
 use std
 
+use "types"
 use "termios"
 use "tiparse"
+use "tiprops"
 
 pkg termdraw =
-	type color = int
-	type attr = int
-
 	const Black	: color = 0
 	const Red  	: color = 1
 	const Green	: color = 2
@@ -24,30 +23,6 @@ pkg termdraw =
 	const Blink	: attr = 5
 	const Invert	: attr = 7
 
-	type term = struct
-		fd	: std.fd
-		x	: int
-		y	: int
-		cx	: int
-		cy	: int
-		width	: int
-		height	: int
-		fg	: color
-		bg	: color
-		attr	: attr
-		buf	: cell[:]
-		orig	: termios
-		cursor	: bool
-
-		info	: terminfo
-	;;
-
-	type cell = struct
-		chr	: char
-		attr	: attr
-		fg	: color
-		bg	: color
-	;;
 
 	const mk	: (fd : std.fd -> term#)
 	const free	: (t : term# -> void)
@@ -73,6 +48,7 @@ pkg termdraw =
 	pkglocal const resize	: (t : term#, x : int, y : int -> void)
 ;;
 
+
 const mk = {fd
 	var ws, t, name
 
@@ -93,10 +69,74 @@ const mk = {fd
 	| `std.Ok inf:	t.info = inf
 	| `std.Err e:	/* whatevs */
 	;;
+	addevents(t)
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	tcgetattr(t.fd, &t.orig)
 	cls(t);
 	-> t
+}
+
+const addevents = {t
+	var s : byte[1]
+	t.kesc = std.zalloc()
+	/* single byte chars default to themselves */
+	for var i = 0; i < 128; i++
+		s[0] = (i : byte)
+		if i < 0x1f
+			addevent(t, -1, s[:], `Ctrl i | 0x60)
+		else
+			addevent(t, -1, s[:], `Kc i)
+		;;
+	;;
+	/* hard coded overrides */
+	addevent(t, -1, "\x1b", `Kesc)
+	addevent(t, -1, "\r", `Kc '\n')
+	addevent(t, -1, "\t", `Kc '\t')
+	addevent(t, -1, "\x1b[A", `Kup)
+	addevent(t, -1, "\x1b[B", `Kdown)
+	addevent(t, -1, "\x1b[C", `Kleft)
+	addevent(t, -1, "\x1b[D", `Kright)
+
+	/* keys from terminfo */
+	addevent(t, Key_backspace, "\b", `Kbksp)
+	addevent(t, Delete_character, "\x1b[~3", `Kdel)
+	addevent(t, Tab, "\x09", `Kc '\t')
+	addevent(t, Key_npage, "", `Kpgdn)
+	addevent(t, Key_ppage, "", `Kpgup)
+	addevent(t, Key_home, "\x1b0H", `Khome)
+	addevent(t, Key_end, "\x1b0F", `Kend)
+	addevent(t, Key_f1, "", `Kf1)
+	addevent(t, Key_f2, "", `Kf2)
+	addevent(t, Key_f3, "", `Kf3)
+	addevent(t, Key_f4, "", `Kf4)
+	addevent(t, Key_f5, "", `Kf5)
+	addevent(t, Key_f6, "", `Kf6)
+	addevent(t, Key_f7, "", `Kf7)
+	addevent(t, Key_f8, "", `Kf8)
+	addevent(t, Key_f9, "", `Kf9)
+	addevent(t, Key_f10, "", `Kf10)
+	addevent(t, Key_f11, "", `Kf11)
+}
+
+const addevent = {t, key, fallback, ev
+	var seq, n, nn
+
+	seq = std.getv(tigetstr(&t.info, key), fallback)
+	if seq.len == 0
+		-> void
+	;;
+	std.put("seq: {}, ev: {}\n", seq, ev)
+	n = t.kesc
+	for b : seq
+		match n.sub[b]
+		| `std.Some et:	nn = et
+		| `std.None:	nn = std.zalloc()
+		;;
+		n.sub[b] = `std.Some nn
+		n = nn
+	;;
+	n.ev = ev
+	std.put("{e}\n", seq)
 }
 
 const raw = {t

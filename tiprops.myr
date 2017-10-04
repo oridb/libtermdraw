@@ -1,4 +1,4 @@
-pkg terminfo =
+pkg termdraw =
 	/* boolean properties */
 	const Auto_left_margin		= 0
 	const Auto_right_margin		= 1
