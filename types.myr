@@ -58,6 +58,7 @@ pkg termdraw =
 
 		info	: terminfo
 		kesc	: evtrie#
+		nextb	: byte
 	;;
 
 	type cell = struct

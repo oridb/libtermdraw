@@ -63,13 +63,12 @@ const readkey = {t
 	var buf : byte[4]
 	var n, b
 	
-	b = readb(t.fd)
+	b = peekb(t)
 	if b == 0
 		-> `std.None
 	elif b >= 0x80
-		match std.read(t.fd, buf[1:])
+		match std.read(t.fd, buf[:])
 		| `std.Ok len:
-			buf[0] = b
 			-> `std.Some `Kc std.decode(buf[:len+1])
 		| `std.Err e:
 			std.close(t.fd)
@@ -82,24 +81,36 @@ const readkey = {t
 				-> `std.Some n.ev
 			;;
 			match n.sub[b]
-			| `std.Some nn:	n = nn
 			| `std.None:	-> `std.Some n.ev
+			| `std.Some nn:	readb(t); n = nn
 			;;
-			b = readb(t.fd)
+			b = peekb(t)
 		;;
 	;;
 	-> `std.None
 }
 
-const readb = {fd
-	var buf : byte[1]
-	match std.read(fd, buf[:])
+const peekb = {t
+	if t.nextb == 0
+		t.nextb = readb(t)
+	;;
+	-> t.nextb
+}
+
+
+const readb = {t
+	var b, buf : byte[1]
+	if t.nextb != 0
+		b = t.nextb
+		t.nextb = 0
+		-> b
+	;;
+	match std.read(t.fd, buf[:])
 	| `std.Ok 0:	-> 0
 	| `std.Ok n:	-> buf[0]
 	| `std.Err e:
 		std.put("error reading input: {}\n", e)
 		std.fatal("exiting..\n", e)
 	;;
-
 }
 
