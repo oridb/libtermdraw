@@ -6,15 +6,15 @@ use "tiparse"
 use "tiprops"
 
 pkg termdraw =
-	const Black	: color = 0
-	const Red  	: color = 1
-	const Green	: color = 2
-	const Yellow	: color = 3
-	const Blue 	: color = 4
-	const Magenta	: color = 5
-	const Cyan 	: color = 6
-	const White	: color = 7
-	const Default	: color = 9
+	const Black	: color = `Palette8 0
+	const Red  	: color = `Palette8 1
+	const Green	: color = `Palette8 2
+	const Yellow	: color = `Palette8 3
+	const Blue 	: color = `Palette8 4
+	const Magenta	: color = `Palette8 5
+	const Cyan 	: color = `Palette8 6
+	const White	: color = `Palette8 7
+	const Default	: color = `Palette8 9
 
 	const Normal	: attr = 0
 	const Bold	: attr = 1
@@ -48,6 +48,25 @@ pkg termdraw =
 	pkglocal const resize	: (t : term#, x : int, y : int -> void)
 ;;
 
+/* The mapping used by tmux to degrade 256 -> 16 */
+const col256to16 = [
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	 0,  4,  4,  4, 12, 12,  2,  6,  4,  4, 12, 12,  2,  2,  6,  4,
+	12, 12,  2,  2,  2,  6, 12, 12, 10, 10, 10, 10, 14, 12, 10, 10,
+	10, 10, 10, 14,  1,  5,  4,  4, 12, 12,  3,  8,  4,  4, 12, 12,
+	 2,  2,  6,  4, 12, 12,  2,  2,  2,  6, 12, 12, 10, 10, 10, 10,
+	14, 12, 10, 10, 10, 10, 10, 14,  1,  1,  5,  4, 12, 12,  1,  1,
+	 5,  4, 12, 12,  3,  3,  8,  4, 12, 12,  2,  2,  2,  6, 12, 12,
+	10, 10, 10, 10, 14, 12, 10, 10, 10, 10, 10, 14,  1,  1,  1,  5,
+	12, 12,  1,  1,  1,  5, 12, 12,  1,  1,  1,  5, 12, 12,  3,  3,
+	 3,  7, 12, 12, 10, 10, 10, 10, 14, 12, 10, 10, 10, 10, 10, 14,
+	 9,  9,  9,  9, 13, 12,  9,  9,  9,  9, 13, 12,  9,  9,  9,  9,
+	13, 12,  9,  9,  9,  9, 13, 12, 11, 11, 11, 11,  7, 12, 10, 10,
+	10, 10, 10, 14,  9,  9,  9,  9,  9, 13,  9,  9,  9,  9,  9, 13,
+	 9,  9,  9,  9,  9, 13,  9,  9,  9,  9,  9, 13,  9,  9,  9,  9,
+	 9, 13, 11, 11, 11, 11, 11, 15,  0,  0,  0,  0,  0,  0,  8,  8,
+	 8,  8,  8,  8,  7,  7,  7,  7,  7,  7, 15, 15, 15, 15, 15, 15
+]
 
 const mk = {fd
 	var ws, t, name
@@ -62,11 +81,22 @@ const mk = {fd
 		.fg=Default,
 		.bg=Default,
 		.buf=std.slalloc((ws.row * ws.col : std.size)),
-		.cursor=false
+		.cursor=false,
+		.ncolors=8,
+		.hasrgb=false,
 	])
+	match std.getenv("COLORTERM")
+	| `std.Some _:	t.hasrgb = true
+	| `std.None:
+	;;
 	name = std.getenvv("TERM", "vt100")
 	match tiparse(name)
-	| `std.Ok inf:	t.info = inf
+	| `std.Ok inf:
+		t.info = inf
+		match tigetnum(&t.info, Max_colors)
+		| `std.Some n: t.ncolors = (n : uint)
+		| `std.None:
+		;;
 	| `std.Err e:	/* whatevs */
 	;;
 	addevents(t)
@@ -153,7 +183,6 @@ const addevent = {t, key, fallback, ev
 	if seq.len == 0
 		-> void
 	;;
-	std.put("seq: {}, ev: {}\n", seq, ev)
 	n = t.kesc
 	for b : seq
 		match n.sub[b]
@@ -164,7 +193,6 @@ const addevent = {t, key, fallback, ev
 		n = nn
 	;;
 	n.ev = ev
-	std.put("{e}\n", seq)
 }
 
 const cls = {t
@@ -198,12 +226,111 @@ const clear = {t, x0, y0, x1, y1
 
 }
 
+const nearestEuclidean256 = {r, g, b
+	var nearest_dist : uint64 = 0x1000000000
+	var dr : uint64 = 0
+	var dg : uint64 = 0
+	var db : uint64 = 0
+	var nearest_k : uint8 = 0
+	var k : uint8 = 16
+
+	/* TODO: perhaps cache the last N of these */
+
+	/* This follows the "* 40 + 55" color cube of 256color.pl */
+	for rr : [0, 95, 135, 175, 215, 255][:]
+		dr = (rr - (r : uint64)) * (rr - (r : uint64))
+		for gg : [0, 95, 135, 175, 215, 255][:]
+			dg = (gg - (g : uint64)) * (gg - (g : uint64))
+			for bb : [0, 95, 135, 175, 215, 255][:]
+				db = (bb - (b : uint64)) * (bb - (b : uint64))
+				if dr + dg + db <= nearest_dist
+					nearest_dist = dr + dg + db
+					nearest_k = k
+				;;
+				k++
+			;;
+		;;
+	;;
+
+	-> (nearest_k : uint8)
+}
+
+const degradecolor = {t, c
+	var degraded = c
+	var approx256
+	var approx16
+	match c
+	| `Palette8 _:
+		-> c
+	| `Palette256 v:
+		if t.ncolors >= 256
+			-> c
+		elif v >= 16 && t.hasrgb
+			var r, g, b
+			r = (v - 16) / 36
+			if r != 0
+				r = r * 40 + 55
+			;;
+			g = ((v - 16) / 6) % 6
+			if g != 0
+				g = g * 40 + 55
+			;;
+			b = (v - 16) % 6
+			if b != 0
+				b = b * 40 + 55
+			;;
+			-> `RGB (r, g, b)
+		else
+			approx16 = col256to16[v]
+			if t.ncolors >= 16
+				-> `Palette256 approx16
+			else
+				-> `Palette8 ((approx16 % 8) : int8)
+			;;
+		;;
+	| `RGB (r, g, b):
+		if t.hasrgb
+			-> c
+		;;
+		approx256 = nearestEuclidean256(r, g, b)
+		-> degradecolor(t, `Palette256 approx256)
+	;;
+}
+
+const applycolor = {sb, c, t
+	match c
+	| `Palette8 v: std.sbfmt(sb, "\x1b[{}{}m", t, v)
+	| `Palette256 v: std.sbfmt(sb, "\x1b[{}8;5;{}m", t, v)
+	| `RGB (r, g, b): std.sbfmt(sb, "\x1b[{}8;2;{};{};{}m", t, r, g, b)
+	;;
+}
+
+const samecolor = {a,b
+	match a
+	| `RGB (ar,ag,ab):
+		match b
+		| `RGB (br,bg,bb): -> (ar==br) && (bg==ag) && (ab==bb)
+		| _: -> false
+		;;
+	| `Palette256 av:
+		match b
+		| `Palette256 bv: -> av == bv
+		| _: -> false
+		;;
+	| `Palette8 av:
+		match b
+		| `Palette8 bv: -> av == bv
+		| _: -> false
+		;;
+	;;
+}
+
 const flush = {t
 	var fg, bg, attr, len
 	var sb, s
 
-	fg = -1
-	bg = -1
+	fg = `Palette8 -1
+	bg = `Palette8 -1
 	attr = -1
 	sb = std.mksb()
 
@@ -215,13 +342,13 @@ const flush = {t
 			attr = t.buf[i].attr;
 			std.sbfmt(sb, "\x1b[{}m", attr)
 		;;
-		if fg != t.buf[i].fg
+		if !samecolor(fg, t.buf[i].fg)
 			fg = t.buf[i].fg;
-			std.sbfmt(sb, "\x1b[{}m", 30+fg)
+			applycolor(sb, fg, 3)
 		;;
-		if bg != t.buf[i].bg
+		if !samecolor(bg, t.buf[i].bg)
 			bg = t.buf[i].bg;
-			std.sbfmt(sb, "\x1b[{}m", 40+bg)
+			applycolor(sb, bg, 4)
 		;;
 		std.sbputc(sb, t.buf[i].chr)
 		if i % t.width == t.width - 1 && i != t.width * t.height - 1
@@ -346,9 +473,9 @@ const setattr = {t, attr
 }
 
 const setfg = {t, fg
-	t.fg = fg
+	t.fg = degradecolor(t, fg)
 }
 
 const setbg = {t, bg
-	t.bg = bg
+	t.bg = degradecolor(t, bg)
 }

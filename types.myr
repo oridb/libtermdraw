@@ -3,7 +3,11 @@ use std
 use "termios"
 
 pkg termdraw =
-	type color = int
+	type color = union
+		`Palette8 int8
+		`Palette256 uint8
+		`RGB (uint8, uint8, uint8)
+	;;
 	type attr = int
 
 	type event = union
@@ -55,6 +59,8 @@ pkg termdraw =
 		buf	: cell[:]
 		orig	: termios
 		cursor	: bool
+		ncolors : uint
+		hasrgb	: bool
 
 		info	: terminfo
 		kesc	: evtrie#
