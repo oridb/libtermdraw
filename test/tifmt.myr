@@ -1,0 +1,74 @@
+use std
+use testr
+use termdraw
+
+const main = {
+	testr.run([
+		/* basic */
+		[.name="cpstr", .fn={ctx
+			var f
+			testr.check(ctx, std.sleq(termdraw.tifmt(&f, "abc", [][:]), "abc"), "bad output")
+		}],
+		[.name="multiarg", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 123, `termdraw.Str "abc"][:]
+			s = termdraw.tifmt(&f, "%p0%d%p1%s", params) 
+			testr.check(ctx, std.sleq(s, "123abc"), "bad output")
+		}],
+		[.name="escape-pct", .fn={ctx
+			var f
+			testr.check(ctx, std.sleq(termdraw.tifmt(&f, "%%abc", [][:]), "%abc"), "bad output")
+		}],
+		[.name="increment", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 123, `termdraw.Int 243, `termdraw.Str "abc"][:]
+			s = termdraw.tifmt(&f, "%i%p0%d-%p1%d-%p2%s", params) 
+			testr.check(ctx, std.sleq(s, "124-244-abc"), "bad output")
+		}],
+
+		/* numeric */
+		[.name="arith-add",	.fn={ctx; binop(ctx, 'd', '+', 10, 21, "31")}],
+		[.name="arith-sub",	.fn={ctx; binop(ctx, 'd', '-', 21, 10, "-11")}],
+		[.name="arith-mul",	.fn={ctx; binop(ctx, 'd', '*', 10, 21, "210")}],
+		[.name="arith-div",	.fn={ctx; binop(ctx, 'd', '/', 9, 100, "11")}],
+		[.name="arith-mod",	.fn={ctx; binop(ctx, 'd', 'm', 9, 100, "1")}],
+
+		/* bitwise */
+		[.name="bit-and",	.fn={ctx; binop(ctx, 'x','&', 0x60, 0xc0, "40")}],
+		[.name="bit-or",	.fn={ctx; binop(ctx, 'x','|', 0x60, 0x80, "e0")}],
+		[.name="bit-xor",	.fn={ctx; binop(ctx, 'x','^', 0x60, 0xc0, "a0")}],
+		/* not really a binop, but I can cheat. */
+		[.name="bit-not",	.fn={ctx; binop(ctx, 'x','~', 0x00, 0xc0, "3f")}],
+
+		/* logical */
+		[.name="logic-and-tt",	.fn={ctx; binop(ctx, 'x','A', 10, 20, "1")}],
+		[.name="logic-and-tf",	.fn={ctx; binop(ctx, 'x','A', 10, 0, "0")}],
+		[.name="logic-and-ft",	.fn={ctx; binop(ctx, 'x','A', 0, 10, "0")}],
+		[.name="logic-and-ff",	.fn={ctx; binop(ctx, 'x','A', 0, 0, "0")}],
+
+		[.name="logic-or-tt",	.fn={ctx; binop(ctx, 'x','O', 10, 20, "1")}],
+		[.name="logic-or-tf",	.fn={ctx; binop(ctx, 'x','O', 10, 0, "1")}],
+		[.name="logic-or-ft",	.fn={ctx; binop(ctx, 'x','O', 0, 10, "1")}],
+		[.name="logic-or-ff",	.fn={ctx; binop(ctx, 'x','O', 0, 0, "0")}],
+
+		[.name="logic-not-t",	.fn={ctx; binop(ctx, 'x','!', 10, 20, "0")}],
+		[.name="logic-not-f",	.fn={ctx; binop(ctx, 'x','!', 10, 0, "1")}],
+
+		/* relational */
+
+		/* branching */
+		/* oddballs */
+	][:])
+}
+
+const binop = {ctx, fmt, op, a0, a1, expected
+	var f, r, s
+
+	s = std.fmt("%p0%p1%{}%{}", op, fmt)
+	var params = [`termdraw.Int a0, `termdraw.Int a1][:]
+	r = termdraw.tifmt(&f, s, params) 
+	testr.check(ctx, std.sleq(r, expected), "expected {}, got {}", expected, r)
+	std.slfree(s)
+}

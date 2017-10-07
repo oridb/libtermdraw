@@ -93,4 +93,18 @@ pkg termdraw =
 		str	: byte[:][:]
 	;;
 
+	type tivar = union
+		`Int int32
+		`Str byte[:]
+	;;
+
+	type tifmt = struct
+		params	: tivar[9]
+		vars	: tivar[26*2]
+		stk	: tivar[64]
+		nstk	: int
+		buf	: byte[64]
+		n	: int
+	;;
+
 ;;

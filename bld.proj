@@ -12,9 +12,6 @@ lib termdraw =
 	# terminfo
 	tiparse.myr
 	tiprops.myr
+	tifmt.myr
 ;;
 
-bin td =
-	td.myr
-	lib termdraw
-;;

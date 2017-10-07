@@ -1,0 +1,288 @@
+use std
+
+use "types"
+
+pkg termdraw =
+	const tifmt	: (f : tifmt#, str : byte[:], params : tivar[:] -> byte[:])
+;;
+
+const tifmt = {f, str, params
+	var i, b
+
+	i = 0
+	init(f, params)
+	while i < str.len
+:next
+		b = next(str, &i)
+		if (b : char) != '%'
+			f.buf[f.n++] = b
+			continue
+		;;
+
+		match (next(str, &i) : char)
+		| '%':	f.buf[f.n++] = ('%' : byte)
+		| 'c':	f.buf[f.n++] = (popi(f) : byte)
+		| 'p':	push(f, loadparam(f, str, &i))
+		| 'P':	setvar(f, next(str, &i), pop(f))
+		| 'g':	push(f, getvar(f, next(str, &i)))
+		| '\'':	litchr(f, str, &i)
+		| '{':	litint(f, str, &i)
+		| 'l':	pushi(f, pops(f).len)
+		/* arithmetic */
+		| '+':	pushi(f, popi(f) + popi(f))
+		| '-':	pushi(f, popi(f) - popi(f))
+		| '*':	pushi(f, popi(f) * popi(f))
+		| '/':	pushi(f, popi(f) / popi(f))
+		| 'm':	pushi(f, popi(f) % popi(f))
+		/* bitwise */
+		| '&':	pushi(f, popi(f) & popi(f))
+		| '|':	pushi(f, popi(f) | popi(f))
+		| '^':	pushi(f, popi(f) ^ popi(f))
+		| '~':	pushi(f, ~ popi(f))
+		/* relational */
+		| '=':	pushi(f, btoi(popi(f) == popi(f)))
+		| '<':	pushi(f, btoi(popi(f) < popi(f)))
+		| '>':	pushi(f, btoi(popi(f) > popi(f)))
+		/* logical */
+		| 'A':	pushi(f, btoi(popi(f) != 0 && popi(f) != 0))
+		| 'O':	pushi(f, btoi(popi(f) != 0 || popi(f) != 0))
+		| '!':	pushi(f, btoi(popi(f) == 0))
+		| 'i':	inc(&f.params[0]); inc(&f.params[1])
+		/* branching */
+		| '?':	std.fatal("wut")
+		| 't':	std.fatal("wut")
+		| 'e':	std.fatal("wut")
+		| ';':	std.fatal("wut")
+		/* special formatting */
+		| ':':	i++; fmtvar(f, str, &i, str[i - 1])
+		| chr:	fmtvar(f, str, &i, str[i - 1])
+		;;
+	;;
+	-> f.buf[:f.n]
+}
+
+const init = {f, params
+	f.n = 0
+	f.nstk = 0
+	std.slfill(f.params[:], `Int 0)
+	std.slcp(f.params[:params.len], params)
+}
+
+const loadparam = {f, str, iptr
+	var p
+
+	p = next(str, iptr)
+	-> f.params[p - ('0' : byte)]
+}
+
+const pushi = {f, i
+	f.stk[f.nstk++] = `Int i
+}
+
+const push = {f, v
+	f.stk[f.nstk++] = v
+}
+
+const litchr = {f, str, i
+	var c
+
+	c = next(str, i)
+	pushi(f, (c : int32))
+	if next(str, i) != ('\'' : byte)
+		std.fatal("malformed format string\n")
+	;;
+}
+
+const litint = {f, str, i
+	var n
+	n = scannum(str, i)
+	pushi(f, (n : int32))
+	if next(str, i) != ('}' : byte)
+		std.fatal("malformed format string\n")
+	;;
+}
+
+const setvar = {f, name, val
+	if name >= ('A' : byte) && name <= ('Z' : byte)
+		f.vars[name-('A' : byte)] = val
+	elif name >= ('a' : byte) && name <= ('z' : byte)
+		f.vars[26+name-('a' : byte)] = val
+	else
+		std.fatal("setting invalid variable")
+	;;
+}
+
+const getvar = {f, name
+	if name >= ('A' : byte) && name <= ('Z' : byte)
+		-> f.vars[name-('A' : byte)]
+	elif name >= ('a' : byte) && name <= ('z' : byte)
+		-> f.vars[26+name-('a' : byte)]
+	else
+		std.fatal("setting invalid variable")
+	;;
+}
+
+const popi = {f
+	match f.stk[--f.nstk]
+	| `Int i:	-> i
+	| `Str s:	std.fatal("popping int, but var is str\n")
+	;;
+}
+
+const pops = {f
+	match f.stk[--f.nstk]
+	| `Int i:	std.fatal("popping str, but var is int\n")
+	| `Str s:	-> s
+	;;
+}
+
+const pop = {f
+	-> f.stk[--f.nstk]
+}
+
+const fmtvar = {f, str, i, b
+	var width = 0, prec = -1
+	var lpad = false
+	var sign = false
+	var alt = false
+	var blank = false
+
+	/* flags */
+	match (b :char)
+	| '-':	lpad  = true; b = next(str, i)
+	| '+':	sign  = true; b = next(str, i)
+	| '#':	alt   = true; b = next(str, i)
+	| ' ':	blank = true; b = next(str, i)
+	| _:	/* nothing */
+	;;
+	/* width */
+	if std.isdigit((b : char))
+		i#--
+		width = scannum(str, i)
+	;;
+	/* precision */
+	if b == ('.' : byte)
+		prec = scannum(str, i)
+	;;
+
+	/* fmt */
+	match (b : char)
+	| 'd':	intfmt(f, lpad, sign, alt, blank, width, prec, popi(f), 10, false)
+	| 'o':	intfmt(f, lpad, sign, alt, blank, width, prec, popi(f), 8, false)
+	| 'x':	intfmt(f, lpad, sign, alt, blank, width, prec, popi(f), 16, false)
+	| 'X':	intfmt(f, lpad, sign, alt, blank, width, prec, popi(f), 16, true)
+	| 's':	strfmt(f, lpad, width, prec, pops(f))
+	| c:	std.fatal("invalid terminfo fmt {}\n", c)
+	;;
+}
+
+const btoi = {b
+	if b
+		-> 1
+	else
+		-> 0
+	;;
+}
+
+const inc = {pp
+	match pp#
+	| `Int i:	pp# = `Int (i+1)
+	| `Str s:	std.fatal("cant increment str\n")
+	;;
+}
+
+
+const next = {s, idxp -> byte
+	if idxp# == s.len
+		-> 0
+	;;
+	idxp#++
+	-> s[idxp# - 1]
+}
+
+const digitchars = "0123456789ABCDEF"
+const intfmt = {f, lpad, spad, alt, blank, width, prec, val, base, upper
+	var i, j, npad, isneg
+	var b : byte[32]
+
+	for i = 0; i < prec; i++
+		b[i] = ('0' : byte)
+	;;
+	i = 0
+	isneg = false
+	if val < 0
+		val = -(val : int32)
+		isneg = true
+		/* if its negative after inverting, we have int min */
+		if val < 0
+			i = 11
+			std.slcp(b[:11], "-2147483648")
+			goto output
+		;;
+	;;
+
+	i = 0
+	if val == 0
+		b[i++] = ('0' : byte)
+	;;
+	while val != 0
+		b[i] = digitchars[val % base]
+		if !upper && b[i] >= ('A' : byte) && b[i] <= ('F' : byte)
+			b[i] |= 0x60
+		;;
+		val /= base
+		i++
+	;;
+	if isneg
+		b[i++] = ('-' : byte)
+	elif spad
+		b[i++] = (' ' : byte)
+	;;
+:output
+	npad = std.max(width, i)
+	if isneg
+		npad--
+	;;
+	for j = i; j != 0; j--
+		f.buf[f.n++] =  b[j - 1]
+	;;
+}
+
+const strfmt = {f, lpad, width, prec, str
+	var len
+
+	len = str.len
+
+	/* assumption: ascii, one byte per char */
+	if prec > 0 && prec < str.len
+		str = str[:prec]
+	;;
+	if width < str.len
+		width = str.len
+	;;
+	if lpad
+		std.slfill(f.buf[f.n:f.n + width - str.len], (' ' : byte))
+		std.slcp(f.buf[f.n + width - str.len:f.n + width], str)
+	else
+		std.slcp(f.buf[f.n:f.n+str.len], str)
+		std.slfill(f.buf[f.n+str.len:f.n+str.len+(width-str.len)], (' ': byte))
+	;;
+	f.n += width
+}
+
+const scannum = {s : byte[:], start
+	var i, c
+
+	i = start
+	while true
+		c = std.decode(s[i#:])
+		if !std.isdigit(c)
+			break
+		;;
+		i# += std.charlen(c)
+	;;
+	match std.intparse(s[:i#])
+	| `std.Some n:	-> n
+	| `std.None:	-> 0
+	;;
+}
