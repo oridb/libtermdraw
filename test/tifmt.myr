@@ -76,14 +76,16 @@ const main = {
 			var f, s
 
 			var params = [`termdraw.Int 1, `termdraw.Int 1][:]
-			s = termdraw.tifmt(&f, "%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", params) 
+			s = termdraw.tifmt(&f, \
+				"%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", params) 
 			testr.check(ctx, std.sleq(s, "truetrue"), "bad output")
 		}],
 		[.name="cond-nested-tf", .fn={ctx
 			var f, s
 
 			var params = [`termdraw.Int 1, `termdraw.Int 0][:]
-			s = termdraw.tifmt(&f, "%?%p0%t%?%p1%ttrue%efalsefalse%;%efalse%;", params) 
+			s = termdraw.tifmt(&f, \
+				"%?%p0%t%?%p1%ttrue%efalsefalse%;%efalse%;", params) 
 			testr.check(ctx, std.sleq(s, "falsefalse"), "bad output")
 		}],
 
