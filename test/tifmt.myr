@@ -40,7 +40,7 @@ const main = {
 		[.name="bit-or",	.fn={ctx; binop(ctx, 'x','|', 0x60, 0x80, "e0")}],
 		[.name="bit-xor",	.fn={ctx; binop(ctx, 'x','^', 0x60, 0xc0, "a0")}],
 		/* not really a binop, but I can cheat. */
-		[.name="bit-not",	.fn={ctx; binop(ctx, 'x','~', 0x00, 0xc0, "3f")}],
+		[.name="bit-not",	.fn={ctx; binop(ctx, 'x','~', 0x00, 0xc0, "ffffff3f")}],
 
 		/* logical */
 		[.name="logic-and-tt",	.fn={ctx; binop(ctx, 'x','A', 10, 20, "1")}],
