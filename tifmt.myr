@@ -1,5 +1,4 @@
-use std
-
+use std 
 use "types"
 
 pkg termdraw =
@@ -7,10 +6,15 @@ pkg termdraw =
 ;;
 
 const tifmt = {f, str, params
+	init(f, params)
+	eval(f, str)
+	-> f.buf[:f.n]
+}
+
+const eval = {f, str
 	var i, b
 
 	i = 0
-	init(f, params)
 	while i < str.len
 :next
 		b = next(str, &i)
@@ -39,7 +43,7 @@ const tifmt = {f, str, params
 		| '|':	pushi(f, popi(f) | popi(f))
 		| '^':	pushi(f, popi(f) ^ popi(f))
 		| '~':	pushi(f, ~ popi(f))
-		/* relational */
+		/* relational false*/
 		| '=':	pushi(f, btoi(popi(f) == popi(f)))
 		| '<':	pushi(f, btoi(popi(f) < popi(f)))
 		| '>':	pushi(f, btoi(popi(f) > popi(f)))
@@ -49,16 +53,50 @@ const tifmt = {f, str, params
 		| '!':	pushi(f, btoi(popi(f) == 0))
 		| 'i':	inc(&f.params[0]); inc(&f.params[1])
 		/* branching */
-		| '?':	std.fatal("wut")
-		| 't':	std.fatal("wut")
-		| 'e':	std.fatal("wut")
-		| ';':	std.fatal("wut")
+		| '?':	evalcond(f, str, &i)
 		/* special formatting */
-		| ':':	i++; fmtvar(f, str, &i, str[i - 1])
+		| ':':	i++; fmtvar(f, str[i:], &i, str[i - 1])
 		| chr:	fmtvar(f, str, &i, str[i - 1])
 		;;
 	;;
-	-> f.buf[:f.n]
+}
+
+const evalcond ={f, str, pi
+	var cond, iftrue, iffalse
+	var start, depth, i
+
+	cond = ""
+	iftrue = ""
+	iffalse = ""
+	start = pi#
+	depth = 1
+	for i = pi#; i < str.len - 1; i++
+		if str[i] != ('%' : byte)
+			continue
+		;;
+		if str[i + 1] == ('?' : byte)
+			depth++
+		elif str[i + 1] == (';' : byte)
+			depth--
+		elif depth == 1 && str[i + 1] == ('t' : byte)
+			cond = str[start:i]
+			start = i + 2
+		elif depth == 1 && str[i+ 1] == ('e' : byte)
+			iftrue = str[start:i]
+			start = i + 2
+		;;
+		if depth == 0
+			iffalse = str[start:i]
+			break
+		;;
+	;;
+	eval(f, cond)
+	if popi(f) != 0
+		eval(f, iftrue)
+	else
+		eval(f, iffalse)
+	;;
+	pi# = i + 2
 }
 
 const init = {f, params

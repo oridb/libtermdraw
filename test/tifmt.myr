@@ -56,6 +56,38 @@ const main = {
 		[.name="logic-not-t",	.fn={ctx; binop(ctx, 'x','!', 10, 20, "0")}],
 		[.name="logic-not-f",	.fn={ctx; binop(ctx, 'x','!', 10, 0, "1")}],
 
+		/* conditional */
+		[.name="cond-basic-t", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 1][:]
+			s = termdraw.tifmt(&f, "%?%p0%ttrue%efalse%;", params) 
+			std.put("s: {}\n", s)
+			testr.check(ctx, std.sleq(s, "true"), "bad output")
+		}],
+		[.name="cond-basic-f", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 0][:]
+			s = termdraw.tifmt(&f, "%?%p0%ttrue%efalse%;", params) 
+			testr.check(ctx, std.sleq(s, "false"), "bad output")
+		}],
+		[.name="cond-nested-tt", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 1, `termdraw.Int 1][:]
+			s = termdraw.tifmt(&f, "%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", params) 
+			testr.check(ctx, std.sleq(s, "truetrue"), "bad output")
+		}],
+		[.name="cond-nested-tf", .fn={ctx
+			var f, s
+
+			var params = [`termdraw.Int 1, `termdraw.Int 0][:]
+			s = termdraw.tifmt(&f, "%?%p0%t%?%p1%ttrue%efalsefalse%;%efalse%;", params) 
+			testr.check(ctx, std.sleq(s, "falsefalse"), "bad output")
+		}],
+
+
 		/* relational */
 
 		/* branching */
