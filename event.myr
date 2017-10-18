@@ -7,6 +7,7 @@ use "termios"
 
 pkg termdraw =
 	const event	: (t : term# -> event)
+	const poll	: (t : term# -> std.option(event))
 	const checksize	: (t : term# -> void)
 ;;
 
@@ -48,6 +49,21 @@ const event = {t
 		;;
 	;;
 	-> `Gone
+}
+
+const poll = {t
+	var c = winchanges
+	if c > winreported
+		winreported = c
+		checksize(t)
+		-> `std.Some `Winsz (t.x, t.y)
+	;;
+
+	if t.nextb == 0
+		-> `std.None
+	;;
+
+	-> readkey(t)
 }
 
 const checksize = {t
