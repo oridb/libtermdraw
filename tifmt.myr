@@ -2,16 +2,21 @@ use std
 use "types"
 
 pkg termdraw =
-	const tifmt	: (f : tifmt#, str : byte[:], params : tivar[:] -> byte[:])
+	const tifmt	: (f : tifmt#, sb : std.strbuf#, str : byte[:], params : tivar[:] -> void)
 ;;
 
-const tifmt = {f, str, params
+const tifmt = {f, sb, str, params
 	init(f, params)
-	eval(f, str)
-	-> f.buf[:f.n]
+	eval(f, sb, str)
 }
 
-const eval = {f, str
+const init = {f, params
+	f.nstk = 0
+	std.slfill(f.params[:], `Int 0)
+	std.slcp(f.params[:params.len], params)
+}
+
+const eval = {f, sb, str
 	var i, b
 
 	i = 0
@@ -19,13 +24,13 @@ const eval = {f, str
 :next
 		b = next(str, &i)
 		if (b : char) != '%'
-			f.buf[f.n++] = b
+			std.sbputb(sb, b)
 			continue
 		;;
 
 		match (next(str, &i) : char)
-		| '%':	f.buf[f.n++] = ('%' : byte)
-		| 'c':	f.buf[f.n++] = (popi(f) : byte)
+		| '%':	std.sbputb(sb, ('%' : byte))
+		| 'c':	std.sbputb(sb, (popi(f) : byte))
 		| 'p':	push(f, loadparam(f, str, &i))
 		| 'P':	setvar(f, next(str, &i), pop(f))
 		| 'g':	push(f, getvar(f, next(str, &i)))
@@ -53,15 +58,15 @@ const eval = {f, str
 		| '!':	pushi(f, btoi(popi(f) == 0))
 		| 'i':	inc(&f.params[0]); inc(&f.params[1])
 		/* branching */
-		| '?':	evalcond(f, str, &i)
+		| '?':	evalcond(f, sb, str, &i)
 		/* special formatting */
-		| ':':	i++; fmtvar(f, str[i:], &i, str[i - 1])
-		| chr:	fmtvar(f, str, &i, str[i - 1])
+		| ':':	i++; fmtvar(f, sb,  str[i:], &i, str[i - 1])
+		| chr:	fmtvar(f, sb, str, &i, str[i - 1])
 		;;
 	;;
 }
 
-const evalcond ={f, str, pi
+const evalcond ={f, sb, str, pi
 	var cond, iftrue, iffalse
 	var start, depth, i
 
@@ -90,20 +95,13 @@ const evalcond ={f, str, pi
 			break
 		;;
 	;;
-	eval(f, cond)
+	eval(f, sb, cond)
 	if popi(f) != 0
-		eval(f, iftrue)
+		eval(f, sb, iftrue)
 	else
-		eval(f, iffalse)
+		eval(f, sb, iffalse)
 	;;
 	pi# = i + 2
-}
-
-const init = {f, params
-	f.n = 0
-	f.nstk = 0
-	std.slfill(f.params[:], `Int 0)
-	std.slcp(f.params[:params.len], params)
 }
 
 const loadparam = {f, str, iptr
@@ -178,7 +176,7 @@ const pop = {f
 	-> f.stk[--f.nstk]
 }
 
-const fmtvar = {f, str, i, b
+const fmtvar = {f, sb, str, i, b
 	var width = 0, prec = -1
 	var lpad = false
 	var sign = false
@@ -205,11 +203,11 @@ const fmtvar = {f, str, i, b
 
 	/* fmt */
 	match (b : char)
-	| 'd':	intfmt(f, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 10, false)
-	| 'o':	intfmt(f, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 8, false)
-	| 'x':	intfmt(f, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 16, false)
-	| 'X':	intfmt(f, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 16, true)
-	| 's':	strfmt(f, lpad, width, prec, pops(f))
+	| 'd':	intfmt(f, sb, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 10, false)
+	| 'o':	intfmt(f, sb, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 8, false)
+	| 'x':	intfmt(f, sb, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 16, false)
+	| 'X':	intfmt(f, sb, (b : char), lpad, sign, alt, blank, width, prec, popi(f), 16, true)
+	| 's':	strfmt(f, sb, lpad, width, prec, pops(f))
 	| c:	std.fatal("invalid terminfo fmt {}\n", c)
 	;;
 }
@@ -239,7 +237,7 @@ const next = {s, idxp -> byte
 }
 
 const digitchars = "0123456789ABCDEF"
-const intfmt = {f, chr, lpad, spad, alt, blank, width, prec, _val, base, upper
+const intfmt = {f, sb, chr, lpad, spad, alt, blank, width, prec, _val, base, upper
 	var i, j, npad, isneg, v
 	var b : byte[32]
 
@@ -292,12 +290,12 @@ const intfmt = {f, chr, lpad, spad, alt, blank, width, prec, _val, base, upper
 		npad--
 	;;
 	for j = i; j != 0; j--
-		f.buf[f.n++] =  b[j - 1]
+		std.sbputb(sb, b[j - 1])
 	;;
 }
 
-const strfmt = {f, lpad, width, prec, str
-	var len
+const strfmt = {f, sb, lpad, width, prec, str
+	var len, nleft, nright
 
 	len = str.len
 
@@ -309,13 +307,19 @@ const strfmt = {f, lpad, width, prec, str
 		width = str.len
 	;;
 	if lpad
-		std.slfill(f.buf[f.n:f.n + width - str.len], (' ' : byte))
-		std.slcp(f.buf[f.n + width - str.len:f.n + width], str)
+		nleft = width - str.len
+		nright = 0
 	else
-		std.slcp(f.buf[f.n:f.n+str.len], str)
-		std.slfill(f.buf[f.n+str.len:f.n+str.len+(width-str.len)], (' ': byte))
+		nleft = 0
+		nright = width - str.len
 	;;
-	f.n += width
+	for var i = 0; i < nleft; i++
+		std.sbputc(sb, ' ')
+	;;
+	std.sbputs(sb, str)
+	for var i = 0; i < nright; i++
+		std.sbputc(sb, ' ')
+	;;
 }
 
 const scannum = {s : byte[:], start

@@ -6,26 +6,18 @@ const main = {
 	testr.run([
 		/* basic */
 		[.name="cpstr", .fn={ctx
-			var f
-			testr.check(ctx, std.sleq(termdraw.tifmt(&f, "abc", [][:]), "abc"), "bad output")
+			checkfmt(ctx, "abc", [][:], "abc")
 		}],
 		[.name="multiarg", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 123, `termdraw.Str "abc"][:]
-			s = termdraw.tifmt(&f, "%p0%d%p1%s", params) 
-			testr.check(ctx, std.sleq(s, "123abc"), "bad output")
+			checkfmt(ctx, "%p0%d%p1%s", params, "123abc")
 		}],
 		[.name="escape-pct", .fn={ctx
-			var f
-			testr.check(ctx, std.sleq(termdraw.tifmt(&f, "%%abc", [][:]), "%abc"), "bad output")
+			checkfmt(ctx, "%%abc", [][:], "%abc")
 		}],
 		[.name="increment", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 123, `termdraw.Int 243, `termdraw.Str "abc"][:]
-			s = termdraw.tifmt(&f, "%i%p0%d-%p1%d-%p2%s", params) 
-			testr.check(ctx, std.sleq(s, "124-244-abc"), "bad output")
+			checkfmt(ctx, "%i%p0%d-%p1%d-%p2%s", params, "124-244-abc")
 		}],
 
 		/* numeric */
@@ -58,51 +50,48 @@ const main = {
 
 		/* conditional */
 		[.name="cond-basic-t", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 1][:]
-			s = termdraw.tifmt(&f, "%?%p0%ttrue%efalse%;", params) 
-			std.put("s: {}\n", s)
-			testr.check(ctx, std.sleq(s, "true"), "bad output")
+			checkfmt(ctx, "%?%p0%ttrue%efalse%;", params, "true")
 		}],
 		[.name="cond-basic-f", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 0][:]
-			s = termdraw.tifmt(&f, "%?%p0%ttrue%efalse%;", params) 
-			testr.check(ctx, std.sleq(s, "false"), "bad output")
+			checkfmt(ctx, "%?%p0%ttrue%efalse%;", params, "false")
 		}],
 		[.name="cond-nested-tt", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 1, `termdraw.Int 1][:]
-			s = termdraw.tifmt(&f, \
-				"%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", params) 
-			testr.check(ctx, std.sleq(s, "truetrue"), "bad output")
+			checkfmt(ctx, \
+				"%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", \
+				params, "truetrue")
 		}],
 		[.name="cond-nested-tf", .fn={ctx
-			var f, s
-
 			var params = [`termdraw.Int 1, `termdraw.Int 0][:]
-			s = termdraw.tifmt(&f, \
-				"%?%p0%t%?%p1%ttrue%efalsefalse%;%efalse%;", params) 
-			testr.check(ctx, std.sleq(s, "falsefalse"), "bad output")
+			checkfmt(ctx, \
+				"%?%p0%t%?%p1%ttruetrue%etruefalse%;%efalsefalse%;", \
+				params, "truefalse") 
 		}],
-
-
-		/* relational */
-
-		/* branching */
 		/* oddballs */
 	][:])
 }
 
 const binop = {ctx, fmt, op, a0, a1, expected
-	var f, r, s
+	var f, r, s, sb
 
 	s = std.fmt("%p0%p1%{}%{}", op, fmt)
 	var params = [`termdraw.Int a0, `termdraw.Int a1][:]
-	r = termdraw.tifmt(&f, s, params) 
+	sb = std.mksb()
+	termdraw.tifmt(&f, sb, s, params) 
+	r = std.sbfin(sb)
 	testr.check(ctx, std.sleq(r, expected), "expected {}, got {}", expected, r)
+	std.slfree(s)
+	std.slfree(r)
+}
+
+const checkfmt = {ctx, fmt, params, expected
+	var f, sb, s
+
+	sb = std.mksb()
+	termdraw.tifmt(&f, sb, fmt, params) 
+	s = std.sbfin(sb)
+	testr.check(ctx, std.sleq(s, expected), "expected {}, got {}\n", expected, s)
 	std.slfree(s)
 }

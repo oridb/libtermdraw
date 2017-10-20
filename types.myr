@@ -103,8 +103,6 @@ pkg termdraw =
 		vars	: tivar[26*2]
 		stk	: tivar[64]
 		nstk	: int
-		buf	: byte[64]
-		n	: int
 	;;
 
 ;;
