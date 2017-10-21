@@ -123,7 +123,7 @@ const litchr = {f, str, i
 	var c
 
 	c = next(str, i)
-	pushi(f, (c : int32))
+	pushi(f, (c : int))
 	if next(str, i) != ('\'' : byte)
 		std.fatal("malformed format string\n")
 	;;
@@ -132,7 +132,7 @@ const litchr = {f, str, i
 const litint = {f, str, i
 	var n
 	n = scannum(str, i)
-	pushi(f, (n : int32))
+	pushi(f, (n : int))
 	if next(str, i) != ('}' : byte)
 		std.fatal("malformed format string\n")
 	;;

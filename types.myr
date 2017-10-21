@@ -63,6 +63,7 @@ pkg termdraw =
 		hasrgb	: bool
 
 		info	: terminfo
+		fmt	: tifmt
 		kesc	: evtrie#
 		nextb	: byte
 	;;
@@ -94,7 +95,7 @@ pkg termdraw =
 	;;
 
 	type tivar = union
-		`Int int32
+		`Int int
 		`Str byte[:]
 	;;
 

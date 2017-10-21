@@ -4,6 +4,7 @@ use "types"
 use "termios"
 use "tiparse"
 use "tiprops"
+use "tifmt"
 
 pkg termdraw =
 	const Black	: color = `Palette8 0
@@ -335,8 +336,8 @@ const flush = {t
 	sb = std.mksb()
 
 	/* hide cursor, move to top, and draw everything */
-	std.sbfmt(sb, "\x1b[?25l")
-	std.sbfmt(sb, "\x1b[1;1f")
+	tfmt(t, sb, Cursor_invisible, "\x1b[?25l", [][:])
+	tfmt(t, sb, Cursor_address, "\x1b[%p0%d;%p1%df", [`Int 1, `Int 1][:])
 	for var i = 0; i < t.width * t.height; i++
 		if attr != t.buf[i].attr
 			attr = t.buf[i].attr;
@@ -356,9 +357,9 @@ const flush = {t
 		;;
 	;;
 	/* restore cursor state */
-	std.sbfmt(sb, "\x1b[{};{}f", t.cy + 1, t.cx + 1)
+	tfmt(t, sb, Cursor_address, "\x1b[%p0%d;%p1%df", [`Int (t.cy+1), `Int (t.cx+1)][:])
 	if t.cursor
-		std.sbfmt(sb, "\x1b[?25h")
+		tfmt(t, sb, Cursor_visible, "\x1b[?25h", [][:])
 	;;
 
 	len = 0
@@ -478,4 +479,11 @@ const setfg = {t, fg
 
 const setbg = {t, bg
 	t.bg = degradecolor(t, bg)
+}
+
+const tfmt = {t, sb, prop, fb, params
+	match tigetstr(&t.info, prop)
+	| `std.Some s:	tifmt(&t.fmt, sb, s, params)
+	| `std.None:	tifmt(&t.fmt, sb, fb, params)
+	;;
 }
