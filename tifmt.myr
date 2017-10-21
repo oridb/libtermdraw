@@ -108,7 +108,7 @@ const loadparam = {f, str, iptr
 	var p
 
 	p = next(str, iptr)
-	-> f.params[p - ('0' : byte)]
+	-> f.params[p - ('1' : byte)]
 }
 
 const pushi = {f, i

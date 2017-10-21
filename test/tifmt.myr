@@ -10,14 +10,14 @@ const main = {
 		}],
 		[.name="multiarg", .fn={ctx
 			var params = [`termdraw.Int 123, `termdraw.Str "abc"][:]
-			checkfmt(ctx, "%p0%d%p1%s", params, "123abc")
+			checkfmt(ctx, "%p1%d%p2%s", params, "123abc")
 		}],
 		[.name="escape-pct", .fn={ctx
 			checkfmt(ctx, "%%abc", [][:], "%abc")
 		}],
 		[.name="increment", .fn={ctx
 			var params = [`termdraw.Int 123, `termdraw.Int 243, `termdraw.Str "abc"][:]
-			checkfmt(ctx, "%i%p0%d-%p1%d-%p2%s", params, "124-244-abc")
+			checkfmt(ctx, "%i%p1%d-%p2%d-%p3%s", params, "124-244-abc")
 		}],
 
 		/* numeric */
@@ -51,22 +51,22 @@ const main = {
 		/* conditional */
 		[.name="cond-basic-t", .fn={ctx
 			var params = [`termdraw.Int 1][:]
-			checkfmt(ctx, "%?%p0%ttrue%efalse%;", params, "true")
+			checkfmt(ctx, "%?%p1%ttrue%efalse%;", params, "true")
 		}],
 		[.name="cond-basic-f", .fn={ctx
 			var params = [`termdraw.Int 0][:]
-			checkfmt(ctx, "%?%p0%ttrue%efalse%;", params, "false")
+			checkfmt(ctx, "%?%p1%ttrue%efalse%;", params, "false")
 		}],
 		[.name="cond-nested-tt", .fn={ctx
 			var params = [`termdraw.Int 1, `termdraw.Int 1][:]
 			checkfmt(ctx, \
-				"%?%p0%t%?%p1%ttruetrue%efalse%;%efalse%;", \
+				"%?%p1%t%?%p2%ttruetrue%efalse%;%efalse%;", \
 				params, "truetrue")
 		}],
 		[.name="cond-nested-tf", .fn={ctx
 			var params = [`termdraw.Int 1, `termdraw.Int 0][:]
 			checkfmt(ctx, \
-				"%?%p0%t%?%p1%ttruetrue%etruefalse%;%efalsefalse%;", \
+				"%?%p1%t%?%p2%ttruetrue%etruefalse%;%efalsefalse%;", \
 				params, "truefalse") 
 		}],
 		/* oddballs */
@@ -76,7 +76,7 @@ const main = {
 const binop = {ctx, fmt, op, a0, a1, expected
 	var f, r, s, sb
 
-	s = std.fmt("%p0%p1%{}%{}", op, fmt)
+	s = std.fmt("%p1%p2%{}%{}", op, fmt)
 	var params = [`termdraw.Int a0, `termdraw.Int a1][:]
 	sb = std.mksb()
 	termdraw.tifmt(&f, sb, s, params) 

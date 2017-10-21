@@ -337,7 +337,7 @@ const flush = {t
 
 	/* hide cursor, move to top, and draw everything */
 	tfmt(t, sb, Cursor_invisible, "\x1b[?25l", [][:])
-	tfmt(t, sb, Cursor_address, "\x1b[%p0%d;%p1%df", [`Int 1, `Int 1][:])
+	tfmt(t, sb, Cursor_address, "\x1b[%i%p1%d;%p2%df", [`Int 0, `Int 0][:])
 	for var i = 0; i < t.width * t.height; i++
 		if attr != t.buf[i].attr
 			attr = t.buf[i].attr;
@@ -357,7 +357,7 @@ const flush = {t
 		;;
 	;;
 	/* restore cursor state */
-	tfmt(t, sb, Cursor_address, "\x1b[%p0%d;%p1%df", [`Int (t.cy+1), `Int (t.cx+1)][:])
+	tfmt(t, sb, Cursor_address, "\x1b[%i%p1%d;%p2%df", [`Int t.cy, `Int t.cx][:])
 	if t.cursor
 		tfmt(t, sb, Cursor_visible, "\x1b[?25h", [][:])
 	;;
