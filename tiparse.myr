@@ -175,6 +175,15 @@ const tistrs = {ti, f, nstr, ntab
 	-> `std.Ok void
 }
 
+const srchpath = [
+	"/etc/terminfo/{}/{}",
+	"/lib/terminfo/{}/{}", 
+	"/usr/share/terminfo/{}/{}",
+	"/etc/terminfo/{r}/{}",
+	"/lib/terminfo/{r}/{}", 
+	"/usr/share/terminfo/{r}/{}"
+][:]
+
 const tiopen = {term
 	var h, p, pfx, pbuf : byte[256]
 
@@ -215,22 +224,12 @@ const tiopen = {term
 	| `std.Err _:	/* next */
 	;;
 
-	p = std.bfmt(pbuf[:], "/etc/terminfo/{}/{}", pfx, term)
-	match bio.open(p, bio.Rd)
-	| `std.Ok f:	-> `std.Ok f
-	| `std.Err _:	/* next */
-	;;
-
-	p = std.bfmt(pbuf[:], "/lib/terminfo/{}/{}", pfx, term)
-	match bio.open(p, bio.Rd)
-	| `std.Ok f:	-> `std.Ok f
-	| `std.Err _:	/* next */
-	;;
-
-	p = std.bfmt(pbuf[:], "/usr/share/terminfo/{}/{}", pfx, term)
-	match bio.open(p, bio.Rd)
-	| `std.Ok f:	-> `std.Ok f
-	| `std.Err _:	/* next */
+	for dir : srchpath[:]
+		p = std.bfmt(pbuf[:], dir, pfx, term)
+		match bio.open(p, bio.Rd)
+		| `std.Ok f:	-> `std.Ok f
+		| `std.Err _:	/* next */
+		;;
 	;;
 
 	-> `std.Err `Enoterm

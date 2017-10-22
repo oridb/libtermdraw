@@ -82,9 +82,11 @@ const readkey = {t
 			;;
 			match n.sub[b]
 			| `std.None:	-> `std.Some n.ev
-			| `std.Some nn:	readb(t); n = nn
+			| `std.Some nn:	
+				t.nextb = 0
+				n = nn
 			;;
-			b = peekb(t)
+			b = readb(t)
 		;;
 	;;
 	-> `std.None
@@ -109,7 +111,6 @@ const readb = {t
 	| `std.Ok 0:	-> 0
 	| `std.Ok n:	-> buf[0]
 	| `std.Err e:
-		std.put("error reading input: {}\n", e)
 		std.fatal("exiting..\n", e)
 	;;
 }

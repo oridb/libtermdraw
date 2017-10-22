@@ -103,7 +103,6 @@ const mk = {fd
 	std.slfill(t.buf, [.chr=' ', .attr=Normal, .fg=Default, .bg=Default])
 	std.fput(t.fd, std.getv(tigetstr(&t.info, Keypad_xmit), ""))
 	tcgetattr(t.fd, &t.orig)
-	cls(t);
 	-> t
 }
 
@@ -127,6 +126,7 @@ const raw = {t
 	tio.cc[termdraw.Vtime] = 1
 	tcsetattr(t.fd, `termdraw.Oflush, &tio)
 	cursoroff(t)
+	cls(t);
 }
 
 const addevents = {t
@@ -149,6 +149,8 @@ const addevents = {t
 	addevent(t, -1, "\x1b[B", `Kdown)
 	addevent(t, -1, "\x1b[C", `Kleft)
 	addevent(t, -1, "\x1b[D", `Kright)
+	addevent(t, -1, "\b", `Kbksp)
+	addevent(t, -1, "\x7f", `Kbksp)
 
 	/* keys from terminfo */
 	addevent(t, Key_up, "", `Kup)
