@@ -81,12 +81,13 @@ const readkey = {t
 				-> `std.Some n.ev
 			;;
 			match n.sub[b]
-			| `std.None:	-> `std.Some n.ev
+			| `std.None:
+				-> `std.Some n.ev
 			| `std.Some nn:	
-				t.nextb = 0
+				readb(t)
 				n = nn
 			;;
-			b = readb(t)
+			b = peekb(t)
 		;;
 	;;
 	-> `std.None
