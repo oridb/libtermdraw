@@ -230,7 +230,14 @@ const clear = {t, x0, y0, x1, y1
 
 }
 
-const nearestEuclidean256 = {r, g, b
+/*
+  Generates a 256 color approximation of an RGB color
+  using the nearest euclidian approximation.
+
+  This follows the apparently-standard "* 40 + 55" color
+  cube of 256color.pl
+*/
+const best256 = {r, g, b
 	var nearest_dist : uint64 = 0x1000000000
 	var dr : uint64 = 0
 	var dg : uint64 = 0
@@ -239,8 +246,6 @@ const nearestEuclidean256 = {r, g, b
 	var k : uint8 = 16
 
 	/* TODO: perhaps cache the last N of these */
-
-	/* This follows the "* 40 + 55" color cube of 256color.pl */
 	for rr : [0, 95, 135, 175, 215, 255][:]
 		dr = (rr - (r : uint64)) * (rr - (r : uint64))
 		for gg : [0, 95, 135, 175, 215, 255][:]
@@ -296,7 +301,7 @@ const degradecolor = {t, c
 		if t.hasrgb
 			-> c
 		;;
-		approx256 = nearestEuclidean256(r, g, b)
+		approx256 = best256(r, g, b)
 		-> degradecolor(t, `Palette256 approx256)
 	;;
 }
@@ -309,9 +314,9 @@ const applycolor = {sb, c, t
 	;;
 }
 
-const samecolor = {a,b
+const samecolor = {a, b
 	match a
-	| `RGB (ar,ag,ab):
+	| `RGB (ar, ag, ab):
 		match b
 		| `RGB (br,bg,bb): -> (ar==br) && (bg==ag) && (ab==bb)
 		| _: -> false
@@ -326,6 +331,19 @@ const samecolor = {a,b
 		| `Palette8 bv: -> av == bv
 		| _: -> false
 		;;
+	;;
+}
+
+const applyattrs = {t, sb, attr
+	tfmt(t, sb, Exit_attribute_mode, "\x1b(B\x1b[m", [][:])
+	match attr
+	| Normal:	/* we already cleared it */
+	| Bold:		tfmt(t, sb, Enter_bold_mode, "\x1b[1m", [][:])
+	| Italic:	tfmt(t, sb, Enter_italics_mode, "\x1b[3m", [][:])
+	| Underline:	tfmt(t, sb, Enter_underline_mode, "\x1b[4m", [][:])
+	| Blink:	tfmt(t, sb, Enter_blink_mode, "\x1b[5m", [][:])
+	| Invert:	tfmt(t, sb, Enter_standout_mode, "\x1b[7m", [][:])
+	| _:		std.fatal("unknown attr {}\n", attr)
 	;;
 }
 
@@ -354,7 +372,7 @@ const flush = {t
 			var i = (y * t.width) + x
 			if attr != t.buf[i].attr
 				attr = t.buf[i].attr;
-				std.sbfmt(sb, "\x1b[{}m", attr)
+				applyattrs(t, sb, attr)
 			;;
 			if !samecolor(fg, t.buf[i].fg)
 				fg = t.buf[i].fg;
