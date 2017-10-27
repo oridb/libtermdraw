@@ -39,10 +39,27 @@ const eval = {f, sb, str
 		| 'l':	pushi(f, pops(f).len)
 		/* arithmetic */
 		| '+':	pushi(f, popi(f) + popi(f))
-		| '-':	pushi(f, popi(f) - popi(f))
+		| '-':
+			var b = popi(f)
+			var a = popi(f)
+			pushi(f, a - b)
 		| '*':	pushi(f, popi(f) * popi(f))
-		| '/':	pushi(f, popi(f) / popi(f))
-		| 'm':	pushi(f, popi(f) % popi(f))
+		| '/':
+			var d = popi(f)
+			var n = popi(f)
+			if d == 0
+				pushi(f, 0)
+			else
+				pushi(f, n / d)
+			;;
+		| 'm':
+			var m = popi(f)
+			var n = popi(f)
+			if m == 0
+				pushi(f, 0)
+			else
+				pushi(f, n % m)
+			;;
 		/* bitwise */
 		| '&':	pushi(f, popi(f) & popi(f))
 		| '|':	pushi(f, popi(f) | popi(f))
@@ -50,8 +67,8 @@ const eval = {f, sb, str
 		| '~':	pushi(f, ~ popi(f))
 		/* relational false*/
 		| '=':	pushi(f, btoi(popi(f) == popi(f)))
-		| '<':	pushi(f, btoi(popi(f) < popi(f)))
-		| '>':	pushi(f, btoi(popi(f) > popi(f)))
+		| '<':	pushi(f, btoi(popi(f) > popi(f)))
+		| '>':	pushi(f, btoi(popi(f) < popi(f)))
 		/* logical */
 		| 'A':	pushi(f, btoi(popi(f) != 0 && popi(f) != 0))
 		| 'O':	pushi(f, btoi(popi(f) != 0 || popi(f) != 0))

@@ -30,10 +30,16 @@ const main = {
 
 		/* numeric */
 		[.name="arith-add",	.fn={ctx; binop(ctx, 'd', '+', 10, 21, "31")}],
-		[.name="arith-sub",	.fn={ctx; binop(ctx, 'd', '-', 21, 10, "-11")}],
+		[.name="arith-sub",	.fn={ctx; binop(ctx, 'd', '-', 10, 21, "-11")}],
 		[.name="arith-mul",	.fn={ctx; binop(ctx, 'd', '*', 10, 21, "210")}],
-		[.name="arith-div",	.fn={ctx; binop(ctx, 'd', '/', 9, 100, "11")}],
-		[.name="arith-mod",	.fn={ctx; binop(ctx, 'd', 'm', 9, 100, "1")}],
+		[.name="arith-div",	.fn={ctx; binop(ctx, 'd', '/', 100, 9, "11")}],
+		[.name="arith-mod",	.fn={ctx; binop(ctx, 'd', 'm', 100, 9, "1")}],
+
+		/* comparison */
+		[.name="comp-lt-1",	.fn={ctx; binop(ctx, 'd', '<', 0, 1, "1")}],
+		[.name="comp-lt-2",	.fn={ctx; binop(ctx, 'd', '<', 0, 999, "1")}],
+		[.name="comp-lt-3",	.fn={ctx; binop(ctx, 'd', '<', 2, -2, "0")}],
+		[.name="comp-gt-1",	.fn={ctx; binop(ctx, 'd', '>', 156, 100, "1")}],
 
 		/* bitwise */
 		[.name="bit-and",	.fn={ctx; binop(ctx, 'x','&', 0x60, 0xc0, "40")}],
