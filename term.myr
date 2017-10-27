@@ -306,11 +306,19 @@ const degradecolor = {t, c
 	;;
 }
 
-const applycolor = {sb, c, t
+const applyfg = {t, sb, c
 	match c
-	| `Palette8 v: std.sbfmt(sb, "\x1b[{}{}m", t, v)
-	| `Palette256 v: std.sbfmt(sb, "\x1b[{}8;5;{}m", t, v)
-	| `RGB (r, g, b): std.sbfmt(sb, "\x1b[{}8;2;{};{};{}m", t, r, g, b)
+	| `Palette8 v:		tfmt(t, sb, Set_a_foreground, "\x1b[3%p1%dm", [`Int (v : int)][:])
+	| `Palette256 v:	tfmt(t, sb, Set_a_foreground, "\x1b[38;5;%p1%dm", [`Int (v : int)][:])
+	| `RGB (r, g, b):	std.sbfmt(sb, "\x1b[38;2;{};{};{}m", r, g, b)
+	;;
+}
+
+const applybg = {t, sb, c
+	match c
+	| `Palette8 v:		tfmt(t, sb, Set_a_background, "\x1b[4%p1%dm", [`Int (v : int)][:])
+	| `Palette256 v:	tfmt(t, sb, Set_a_background, "\x1b[48;5;%p1%dm", [`Int (v : int)][:])
+	| `RGB (r, g, b):	std.sbfmt(sb, "\x1b[48;2;{};{};{}m", r, g, b)
 	;;
 }
 
@@ -374,14 +382,32 @@ const flush = {t
 				attr = t.buf[i].attr;
 				applyattrs(t, sb, attr)
 			;;
-			if !samecolor(fg, t.buf[i].fg)
-				fg = t.buf[i].fg;
-				applycolor(sb, fg, 3)
+
+			var samefg = samecolor(fg, t.buf[i].fg)
+			var samebg = samecolor(bg, t.buf[i].bg)
+			if samefg && samebg
+				goto colorsokay
 			;;
-			if !samecolor(bg, t.buf[i].bg)
-				bg = t.buf[i].bg;
-				applycolor(sb, bg, 4)
+
+			var defaultfg = samecolor(t.buf[i].fg, Default)
+			var defaultbg = samecolor(t.buf[i].bg, Default)
+			var must_reset = false
+			if defaultfg || defaultbg
+				tfmt(t, sb, Orig_pair, "\x1b[39;49m", [][:])
+				must_reset = true
 			;;
+
+			fg = t.buf[i].fg;
+			if !defaultfg && (must_reset || !samefg)
+				applyfg(t, sb, fg)
+			;;
+
+			bg = t.buf[i].bg;
+			if !defaultbg && (must_reset || !samebg)
+				applybg(t, sb, bg)
+			;;
+
+:colorsokay
 			std.sbputc(sb, t.buf[i].chr)
 		;;
 	;;
