@@ -20,6 +20,14 @@ const main = {
 			checkfmt(ctx, "%i%p1%d-%p2%d-%p3%s", params, "124-244-abc")
 		}],
 
+		/* literals */
+		[.name="litint-1",	.fn={ctx
+			checkfmt(ctx, "%{5}%d", [`termdraw.Int 9][:], "5")
+		}],
+		[.name="litint-2",	.fn={ctx
+			checkfmt(ctx, "%{5}%{6}%d", [`termdraw.Int 9][:], "6")
+		}],
+
 		/* numeric */
 		[.name="arith-add",	.fn={ctx; binop(ctx, 'd', '+', 10, 21, "31")}],
 		[.name="arith-sub",	.fn={ctx; binop(ctx, 'd', '-', 21, 10, "-11")}],

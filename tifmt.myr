@@ -324,6 +324,7 @@ const strfmt = {f, sb, lpad, width, prec, str
 
 const scannum = {s : byte[:], start
 	var i, c
+	var begin = start#
 
 	i = start
 	while true
@@ -333,7 +334,7 @@ const scannum = {s : byte[:], start
 		;;
 		i# += std.charlen(c)
 	;;
-	match std.intparse(s[:i#])
+	match std.intparse(s[begin:i#])
 	| `std.Some n:	-> n
 	| `std.None:	-> 0
 	;;
