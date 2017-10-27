@@ -84,14 +84,14 @@ const eval = {f, sb, str
 }
 
 const evalcond ={f, sb, str, pi
-	var cond, iftrue, iffalse
-	var start, depth, i
+	var condition
+	var start, depth, i, done, seen_e
 
-	cond = ""
-	iftrue = ""
-	iffalse = ""
+	condition = ""
 	start = pi#
 	depth = 1
+	done = false
+	seen_e = false
 	for i = pi#; i < str.len - 1; i++
 		if str[i] != ('%' : byte)
 			continue
@@ -100,23 +100,31 @@ const evalcond ={f, sb, str, pi
 			depth++
 		elif str[i + 1] == (';' : byte)
 			depth--
-		elif depth == 1 && str[i + 1] == ('t' : byte)
-			cond = str[start:i]
+		elif !done && depth == 1 && str[i + 1] == ('t' : byte)
+			condition = str[start:i]
 			start = i + 2
-		elif depth == 1 && str[i+ 1] == ('e' : byte)
-			iftrue = str[start:i]
+		elif !done && depth == 1 && str[i + 1] == ('e' : byte)
+			seen_e = true
+
+			eval(f, sb, condition)
+			if popi(f) != 0
+				eval(f, sb, str[start:i])
+				done = true
+			;;
+
 			start = i + 2
 		;;
 		if depth == 0
-			iffalse = str[start:i]
+			if !done && seen_e
+				eval(f, sb, str[start:i])
+			elif !done
+				eval(f, sb, condition)
+				if popi(f) != 0
+					eval(f, sb, str[start:i])
+				;;
+			;;
 			break
 		;;
-	;;
-	eval(f, sb, cond)
-	if popi(f) != 0
-		eval(f, sb, iftrue)
-	else
-		eval(f, sb, iffalse)
 	;;
 	pi# = i + 2
 }

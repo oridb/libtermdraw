@@ -83,6 +83,21 @@ const main = {
 				"%?%p1%t%?%p2%ttruetrue%etruefalse%;%efalsefalse%;", \
 				params, "truefalse") 
 		}],
+		[.name="cond-multi-arm-1", .fn={ctx
+			checkfmt(ctx, \
+				"%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m", \
+				[`termdraw.Int 5][:], "35m")
+		}],
+		[.name="cond-multi-arm-2", .fn={ctx
+			checkfmt(ctx, \
+				"%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m", \
+				[`termdraw.Int 13][:], "95m")
+		}],
+		[.name="cond-multi-arm-3", .fn={ctx
+			checkfmt(ctx, \
+				"%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m", \
+				[`termdraw.Int 221][:], "38;5;221m")
+		}],
 		/* oddballs */
 	][:])
 }
