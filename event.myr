@@ -53,17 +53,18 @@ const event = {t
 
 const poll = {t
 	var c = winchanges
-	if c > winreported
-		winreported = c
-		checksize(t)
-		-> `std.Some `Winsz (t.x, t.y)
-	;;
-
-	if t.nextb == 0
+	if c > winreported || t.nextb != 0 || hasinput(t)
+		-> `std.Some event(t)
+	else
 		-> `std.None
 	;;
+}
 
-	-> readkey(t)
+const hasinput = {t
+	var pfd = [
+		[.fd=(t.fd : sys.fd), .events=sys.Pollin]
+	]
+	-> sys.poll(pfd[:], 0) > 0 && (pfd[0].revents & sys.Pollin != 0)
 }
 
 const checksize = {t
