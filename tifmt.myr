@@ -85,14 +85,14 @@ const eval = {f, sb, str
 
 const evalcond ={f, sb, str, pi
 	var condition
-	var start, depth, i, done, seen_e
+	var start, depth, i, evaldone, seen_e
 
 	condition = ""
 	start = pi#
 	depth = 1
-	done = false
+	evaldone = false
 	seen_e = false
-	for i = pi#; i < str.len - 1; i++
+	for i = pi#; depth > 0 && i < str.len - 1; i++
 		if str[i] != ('%' : byte)
 			continue
 		;;
@@ -100,33 +100,41 @@ const evalcond ={f, sb, str, pi
 			depth++
 		elif str[i + 1] == (';' : byte)
 			depth--
-		elif !done && depth == 1 && str[i + 1] == ('t' : byte)
-			condition = str[start:i]
-			start = i + 2
-		elif !done && depth == 1 && str[i + 1] == ('e' : byte)
-			seen_e = true
-
-			eval(f, sb, condition)
-			if popi(f) != 0
-				eval(f, sb, str[start:i])
-				done = true
-			;;
-
-			start = i + 2
 		;;
-		if depth == 0
-			if !done && seen_e
+		if evaldone
+			continue
+		;;
+		/*
+		If depth is greater than 1, we're processing a nested
+		branch statement, and we should leave the 
+		*/
+		if depth == 1
+			if str[i + 1] == ('t' : byte)
+				condition = str[start:i]
+				start = i + 2
+			elif str[i + 1] == ('e' : byte)
+				seen_e = true
+
+				eval(f, sb, condition)
+				if popi(f) != 0
+					eval(f, sb, str[start:i])
+					evaldone = true
+				;;
+
+				start = i + 2
+			;;
+		elif depth == 0
+			if seen_e
 				eval(f, sb, str[start:i])
-			elif !done
+			else
 				eval(f, sb, condition)
 				if popi(f) != 0
 					eval(f, sb, str[start:i])
 				;;
 			;;
-			break
 		;;
 	;;
-	pi# = i + 2
+	pi# = i + 1
 }
 
 const loadparam = {f, str, iptr
