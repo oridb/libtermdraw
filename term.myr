@@ -356,7 +356,7 @@ const applyattrs = {t, sb, attr
 }
 
 const flush = {t
-	var fg, bg, attr, len
+	var fg, bg, attr, len, cn
 	var sb, s
 
 	fg = `Palette8 -1
@@ -409,7 +409,12 @@ const flush = {t
 
 :colorsokay
 			std.sbputc(sb, t.buf[i].chr)
-			var cn = std.cellwidth(t.buf[i].chr)
+			cn = std.cellwidth(t.buf[i].chr)
+			/*
+			  Normally, we'd advance by 1 cell, but if this is a double
+			  width character, we need to advance by more. Since we don't
+			  have `i` available at the start of the loop, adjust here.
+			*/
 			if cn > 1
 				x += cn - 1
 			;;
