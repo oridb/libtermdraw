@@ -409,6 +409,10 @@ const flush = {t
 
 :colorsokay
 			std.sbputc(sb, t.buf[i].chr)
+			var cn = std.cellwidth(t.buf[i].chr)
+			if cn > 1
+				x += cn - 1
+			;;
 		;;
 	;;
 	/* restore cursor state */
@@ -491,12 +495,13 @@ const strwidth = {t, str
 
 const putc = {t, c
 	var idx
+	var cn = std.max(0, std.cellwidth(c))
 	
-	if t.x >= t.width || t.y >= t.height
+	if t.x + cn > t.width || t.y >= t.height
 		-> void
 	;;
 
-	damage(t, t.x, t.y, t.x+1, t.y+1)
+	damage(t, t.x, t.y, t.x+cn, t.y+1)
 	idx = t.y * t.width + t.x
 	match c
 	| '\r':	t.x = 0
@@ -511,10 +516,12 @@ const putc = {t, c
 		t.buf[idx].bg = t.bg
 		t.buf[idx].attr = t.attr
 
-		if t.x > t.width
+		if t.x + cn >= t.width
 			t.y++ 
+			t.x = 0
+		else
+			t.x += cn
 		;;
-		t.x = (t.x + 1) % t.width
 	;;
 }
 
